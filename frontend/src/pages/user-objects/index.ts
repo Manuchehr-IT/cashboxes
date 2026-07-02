@@ -1,0 +1,1 @@
+export { UserObjectsPage } from "./page"

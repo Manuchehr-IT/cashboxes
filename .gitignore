@@ -1,0 +1,44 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+
+# Ruff / import-linter caches
+.ruff_cache/
+.import_linter_cache/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Docker
+docker-compose.override.yml
+*.pid
+
+*.log
+
+# Sublime
+*.sublime-project
+*.sublime-workspace
+
+# Node / frontend builds
+node_modules/
+dist/
+build/
+
+# Claude Code (personal settings, not shared)
+.claude/settings.local.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Other
+.venv/
+
+logs/
+storage/
+
+!backend/src/**/storage/

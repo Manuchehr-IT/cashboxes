@@ -1,0 +1,8 @@
+@import "@/styles/globals.css";
+@import "@fontsource-variable/inter";
+
+html {
+  overflow-x: hidden;  /* скрывает горизонтальный скролл */
+  /* max-width: 100%;
+  scroll-behavior: smooth; */
+}

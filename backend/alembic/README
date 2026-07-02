@@ -1,0 +1,16 @@
+# Generic single-database configuration.
+
+## Create migration
+alembic revision --autogenerate -m "initial"
+
+## Apply migration
+alembic upgrade head
+
+## Rollback
+alembic downgrade -1
+
+## Full rollback
+alembic downgrade base
+
+## Stamp after rollback
+alembic stamp base

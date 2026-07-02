@@ -1,0 +1,96 @@
+services:
+  postgres:
+    image: postgres:16.2
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DATABASE__USER}
+      POSTGRES_PASSWORD: ${DATABASE__PASSWORD}
+      POSTGRES_DB: ${DATABASE__NAME}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE__USER} -d ${DATABASE__NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  redis:
+    image: redis:alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  backend:
+    restart: unless-stopped
+    build:
+      context: backend
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+      - backend/.env
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.cashboxes_backend.rule=Host(`api.domain.com`)"
+      - "traefik.http.routers.cashboxes_backend.entrypoints=websecure"
+      - "traefik.http.routers.cashboxes_backend.tls=true"
+      - "traefik.http.routers.cashboxes_backend.tls.certresolver=myresolver"
+      - "traefik.http.routers.cashboxes_backend.priority=10"
+      - "traefik.http.services.cashboxes_backend.loadbalancer.server.port=8000"
+    volumes:
+      - ./backend/alembic/versions:/app/alembic/versions
+      - ./backend/logs:/app/logs
+      - ./backend/storage:/app/storage
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
+      - web
+
+  frontend:
+    restart: unless-stopped
+    build:
+      context: frontend
+      dockerfile: Dockerfile.production
+      args:
+        VITE_API_URL: https://api.domain.com
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.cashboxes_frontend.rule=Host(`domain.com`)"
+      - "traefik.http.routers.cashboxes_frontend.entrypoints=websecure"
+      - "traefik.http.routers.cashboxes_frontend.tls=true"
+      - "traefik.http.routers.cashboxes_frontend.tls.certresolver=myresolver"
+      - "traefik.http.routers.cashboxes_frontend.priority=10"
+      - "traefik.http.services.cashboxes_frontend.loadbalancer.server.port=80"
+    environment:
+      CHOKIDAR_USEPOLLING: true
+    networks:
+      - app-network
+      - web
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  app-network:
+    driver: bridge
+  web:
+    external: true

@@ -1,0 +1,1 @@
+export { CashboxesPage } from "./page"

@@ -1,0 +1,57 @@
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+src = ["src"]
+
+[tool.ruff.lint]
+# Намеренно без "W"/"E1" (pycodestyle warnings/indentation) -- проект использует табы,
+# а не пробелы, и эти правила конфликтовали бы с этим на каждой строке.
+select = [
+	"F",   # pyflakes -- unused imports/vars, undefined names
+	"E4",  # import-related pycodestyle errors
+	"E7",  # statement-related pycodestyle errors
+	"E9",  # runtime errors (syntax etc.)
+	"I",   # isort -- import sorting
+	"UP",  # pyupgrade -- modern syntax
+	"B",   # flake8-bugbear -- common bug patterns
+	"C4",  # flake8-comprehensions
+]
+ignore = [
+	"E402",  # module level import not at top -- conflicts with some __init__.py re-export patterns
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+
+[tool.ruff.lint.flake8-bugbear]
+# Depends/Query/Body в дефолтных аргументах -- стандартный FastAPI DI-паттерн, не баг.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Body", "fastapi.Path", "fastapi.Header"]
+
+[tool.ruff.format]
+indent-style = "tab"
+
+[tool.importlinter]
+root_package = "src"
+
+[[tool.importlinter.contracts]]
+name = "Domain has zero dependencies on outer layers"
+type = "independence"
+modules = [
+	"src.domain",
+]
+
+[[tool.importlinter.contracts]]
+name = "Core stays a pure foundation (no dependencies on other layers)"
+type = "forbidden"
+source_modules = ["src.core"]
+forbidden_modules = ["src.domain", "src.application", "src.infrastructure", "src.api"]
+
+[[tool.importlinter.contracts]]
+name = "DDD layers: api -> application -> infrastructure -> domain"
+type = "layers"
+layers = [
+	"src.api",
+	"src.application",
+	"src.infrastructure",
+	"src.domain",
+]
