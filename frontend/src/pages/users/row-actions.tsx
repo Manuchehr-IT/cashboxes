@@ -4,15 +4,15 @@ import { DataTableRowActions } from "@/components/data-table/data-table-row-acti
 import type { User } from "@/pages/users/types"
 
 export function UserRowActions({ table, row }: { table: Table<User>; row: User }) {
-	const { onOpen, onEdit, onDelete } = table.options.meta ?? {}
+  const { onOpen, onEdit, onDelete } = table.options.meta ?? {}
 
-	return (
-		<DataTableRowActions
-			actions={[
-				{ label: "Открыть", icon: ExternalLink, onClick: () => onOpen?.(row) },
-				{ label: "Редактировать", icon: Pencil, onClick: () => onEdit?.(row) },
-				{ label: "Удалить", icon: Trash2, variant: "destructive", separatorBefore: true, onClick: () => onDelete?.(row) },
-			]}
-		/>
-	)
+  return (
+    <DataTableRowActions
+      actions={[
+        { label: "Открыть", icon: ExternalLink, onClick: () => onOpen?.(row) },
+        { label: "Редактировать", icon: Pencil, onClick: () => onEdit?.(row) },
+        { label: "Удалить", icon: Trash2, variant: "destructive", separatorBefore: true, onClick: () => onDelete?.(row) },
+      ]}
+    />
+  )
 }

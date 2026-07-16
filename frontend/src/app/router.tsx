@@ -5,6 +5,7 @@ import { UsersPage } from "@/pages/users"
 import { UserDetailPage } from "@/pages/user-detail"
 import { ObjectsPage } from "@/pages/objects"
 import { CashboxesPage } from "@/pages/reports/cashboxes"
+import { CashboxDetailPage } from "@/pages/reports/cashbox-detail"
 
 import { ProtectedRoute } from "@/components/protected-route"
 import { PublicRoute } from "@/components/public-route"
@@ -30,6 +31,7 @@ export const router = createBrowserRouter([
           { path: "/users/:userId",      element: <UserDetailPage />  },
           { path: "/objects",            element: <ObjectsPage />  },
           { path: "/reports/cashboxes",  element: <CashboxesPage /> },
+          { path: "/reports/cashboxes/:objectId/:cashId", element: <CashboxDetailPage /> },
         ],
       },
     ],

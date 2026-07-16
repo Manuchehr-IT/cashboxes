@@ -5,28 +5,28 @@ import { z } from "zod"
 import { toast } from "sonner"
 import { Check, Copy } from "lucide-react"
 import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-	DialogDescription,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select"
 import { getErrorMessage } from "@/lib/api-error"
 import { useCreate } from "@/pages/users/hooks/use-create"
 
 const schema = z.object({
-	username: z.string().min(1, "Введите имя пользователя"),
-	is_active: z.boolean(),
+  username: z.string().min(1, "Введите имя пользователя"),
+  is_active: z.boolean(),
 })
 
 type Values = z.infer<typeof schema>
@@ -35,125 +35,125 @@ const DEFAULT_VALUES: Values = { username: "", is_active: true }
 const CONFLICT_MESSAGE = "Пользователь с таким именем уже существует"
 
 interface AddUserModalProps {
-	open: boolean
-	onOpenChange: (open: boolean) => void
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
 export function AddUserModal({ open, onOpenChange }: AddUserModalProps) {
-	const create = useCreate()
-	const [error, setError] = useState<string | null>(null)
-	const [generatedPassword, setGeneratedPassword] = useState<string | null>(null)
-	const [copied, setCopied] = useState(false)
+  const create = useCreate()
+  const [error, setError] = useState<string | null>(null)
+  const [generatedPassword, setGeneratedPassword] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
 
-	const form = useForm<Values>({
-		resolver: zodResolver(schema),
-		mode: "onTouched",
-		defaultValues: DEFAULT_VALUES,
-	})
+  const form = useForm<Values>({
+    resolver: zodResolver(schema),
+    mode: "onTouched",
+    defaultValues: DEFAULT_VALUES,
+  })
 
-	useEffect(() => {
-		if (open) {
-			form.reset(DEFAULT_VALUES)
-			setError(null)
-			setGeneratedPassword(null)
-			setCopied(false)
-		}
-	}, [open, form])
+  useEffect(() => {
+    if (open) {
+      form.reset(DEFAULT_VALUES)
+      setError(null)
+      setGeneratedPassword(null)
+      setCopied(false)
+    }
+  }, [open, form])
 
-	const handleSubmit = async (values: Values) => {
-		setError(null)
-		try {
-			const result = await create.mutateAsync(values)
-			setGeneratedPassword(result.password)
-			toast.success(`Пользователь «${values.username}» создан`)
-		} catch (err) {
-			setError(getErrorMessage(err, { conflict: CONFLICT_MESSAGE }))
-		}
-	}
+  const handleSubmit = async (values: Values) => {
+    setError(null)
+    try {
+      const result = await create.mutateAsync(values)
+      setGeneratedPassword(result.password)
+      toast.success(`Пользователь «${values.username}» создан`)
+    } catch (err) {
+      setError(getErrorMessage(err, { conflict: CONFLICT_MESSAGE }))
+    }
+  }
 
-	const handleCopy = () => {
-		if (!generatedPassword) return
-		navigator.clipboard.writeText(generatedPassword)
-		setCopied(true)
-		setTimeout(() => setCopied(false), 2000)
-	}
+  const handleCopy = () => {
+    if (!generatedPassword) return
+    navigator.clipboard.writeText(generatedPassword)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
-	const errors = form.formState.errors
+  const errors = form.formState.errors
 
-	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="w-[calc(100%-2rem)] max-w-md flex flex-col p-0 gap-0">
-				{generatedPassword ? (
-					<>
-						<DialogHeader className="shrink-0 px-6 pt-6 pb-4 border-b">
-							<DialogTitle>Пользователь создан</DialogTitle>
-							<DialogDescription>Сохраните пароль — он показывается только один раз</DialogDescription>
-						</DialogHeader>
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="w-[calc(100%-2rem)] max-w-md flex flex-col p-0 gap-0">
+        {generatedPassword ? (
+          <>
+            <DialogHeader className="shrink-0 px-6 pt-6 pb-4 border-b">
+              <DialogTitle>Пользователь создан</DialogTitle>
+              <DialogDescription>Сохраните пароль — он показывается только один раз</DialogDescription>
+            </DialogHeader>
 
-						<div className="px-6 py-5 space-y-3">
-							<Label>Временный пароль</Label>
-							<div className="flex gap-2">
-								<Input readOnly value={generatedPassword} className="font-mono" />
-								<Button type="button" variant="outline" size="icon" onClick={handleCopy}>
-									{copied ? <Check className="size-4 text-green-600" /> : <Copy className="size-4" />}
-								</Button>
-							</div>
-							<p className="text-xs text-muted-foreground">
-								Передайте пользователю. После закрытия окна пароль восстановить невозможно.
-							</p>
-						</div>
+            <div className="px-6 py-5 space-y-3">
+              <Label>Временный пароль</Label>
+              <div className="flex gap-2">
+                <Input readOnly value={generatedPassword} className="font-mono" />
+                <Button type="button" variant="outline" size="icon" onClick={handleCopy}>
+                  {copied ? <Check className="size-4 text-green-600" /> : <Copy className="size-4" />}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Передайте пользователю. После закрытия окна пароль восстановить невозможно.
+              </p>
+            </div>
 
-						<div className="shrink-0 px-6 py-4 border-t">
-							<Button size="lg" className="w-full" onClick={() => onOpenChange(false)}>
-								Готово
-							</Button>
-						</div>
-					</>
-				) : (
-					<>
-						<DialogHeader className="shrink-0 px-6 pt-6 pb-4 border-b">
-							<DialogTitle>Создать пользователя</DialogTitle>
-							<DialogDescription>Пароль будет сгенерирован автоматически</DialogDescription>
-						</DialogHeader>
+            <div className="shrink-0 px-6 py-4 border-t">
+              <Button size="lg" className="w-full" onClick={() => onOpenChange(false)}>
+                Готово
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <DialogHeader className="shrink-0 px-6 pt-6 pb-4 border-b">
+              <DialogTitle>Создать пользователя</DialogTitle>
+              <DialogDescription>Пароль будет сгенерирован автоматически</DialogDescription>
+            </DialogHeader>
 
-						<form id="add-user-form" onSubmit={form.handleSubmit(handleSubmit)}>
-							<div className="px-6 py-5 space-y-4">
-								<div className="space-y-1.5">
-									<Label htmlFor="add-username">Имя пользователя</Label>
-									<Input id="add-username" autoFocus {...form.register("username")} />
-									{errors.username && (
-										<p className="text-xs text-destructive">{errors.username.message}</p>
-									)}
-								</div>
+            <form id="add-user-form" onSubmit={form.handleSubmit(handleSubmit)}>
+              <div className="px-6 py-5 space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="add-username">Имя пользователя</Label>
+                  <Input id="add-username" autoFocus {...form.register("username")} />
+                  {errors.username && (
+                    <p className="text-xs text-destructive">{errors.username.message}</p>
+                  )}
+                </div>
 
-								<div className="space-y-1.5">
-									<Label>Статус</Label>
-									<Select
-										value={String(form.watch("is_active"))}
-										onValueChange={(v) => form.setValue("is_active", v === "true", { shouldDirty: true })}
-									>
-										<SelectTrigger>
-											<SelectValue />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="true">Активный</SelectItem>
-											<SelectItem value="false">Неактивный</SelectItem>
-										</SelectContent>
-									</Select>
-								</div>
+                <div className="space-y-1.5">
+                  <Label>Статус</Label>
+                  <Select
+                    value={String(form.watch("is_active"))}
+                    onValueChange={(v) => form.setValue("is_active", v === "true", { shouldDirty: true })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="true">Активный</SelectItem>
+                      <SelectItem value="false">Неактивный</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-								{error && <p className="text-sm text-destructive text-center">{error}</p>}
-							</div>
+                {error && <p className="text-sm text-destructive text-center">{error}</p>}
+              </div>
 
-							<div className="shrink-0 px-6 py-4 border-t">
-								<Button type="submit" form="add-user-form" size="lg" className="w-full" disabled={create.isPending}>
-									{create.isPending ? "Создание..." : "Создать пользователя"}
-								</Button>
-							</div>
-						</form>
-					</>
-				)}
-			</DialogContent>
-		</Dialog>
-	)
+              <div className="shrink-0 px-6 py-4 border-t">
+                <Button type="submit" form="add-user-form" size="lg" className="w-full" disabled={create.isPending}>
+                  {create.isPending ? "Создание..." : "Создать пользователя"}
+                </Button>
+              </div>
+            </form>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
 }

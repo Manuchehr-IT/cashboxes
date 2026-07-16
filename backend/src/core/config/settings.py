@@ -1,12 +1,13 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from .schemas import AppSettings, DatabaseSettings, JWTSettings, RedisSettings, StorageSettings
+from .schemas import AppSettings, DatabaseSettings, JWTSettings, OneCSettings, RedisSettings, StorageSettings
 
 
 class Settings(BaseSettings):
 	app: AppSettings
 	database: DatabaseSettings
 	jwt: JWTSettings
+	onec: OneCSettings
 	redis: RedisSettings
 	storage: StorageSettings
 

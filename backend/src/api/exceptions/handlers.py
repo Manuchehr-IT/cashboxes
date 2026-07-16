@@ -13,6 +13,7 @@ ERROR_STATUS_MAP = {
 	"forbidden": 403,
 	"not_found": 404,
 	"conflict": 409,
+	"external_service_error": 502,
 }
 
 def get_http_status(error: BaseError) -> int:

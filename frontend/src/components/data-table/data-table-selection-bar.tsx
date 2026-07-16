@@ -1,5 +1,6 @@
-import { Loader2, Trash2, X, ListChecks } from "lucide-react"
+import { Trash2, X, ListChecks } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Spinner } from "@/components/ui/spinner"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface DataTableSelectionBarProps {
@@ -59,7 +60,7 @@ export function DataTableSelectionBar({
                 aria-label={`Выбрать все ${totalCount}`}
               >
                 {isLoadingSelectAll
-                  ? <Loader2 className="size-4 animate-spin" />
+                  ? <Spinner size={16} />
                   : <ListChecks className="size-4" />
                 }
               </Button>

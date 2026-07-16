@@ -13,7 +13,8 @@ class HTTPClient:
 	@retry(
 		stop=stop_after_attempt(3),
 		wait=wait_exponential(multiplier=1, min=1, max=5),
-		retry=retry_if_exception_type((ConnectTimeout, ConnectError))
+		retry=retry_if_exception_type((ConnectTimeout, ConnectError)),
+		reraise=True,
 	)
 	async def request(self, method: HTTPMethod, url: str, **kwargs: Any):
 		response = await self.client.request(method, url, **kwargs)

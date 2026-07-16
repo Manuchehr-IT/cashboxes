@@ -1,12 +1,13 @@
-from sqlalchemy import func, select, delete
+from uuid import UUID
+
+from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
-from uuid import UUID
 
 from src.application.user.dtos import ObjectAccessDTO
 from src.core.sorting import SortField
 from src.domain.user.exceptions import ObjectAccessNotFoundError
-from src.infrastructure.database.models import UserObjectModel, ObjectModel
+from src.infrastructure.database.models import ObjectModel, UserObjectModel
 from src.infrastructure.database.utils import SelectT, SortColumns, apply_sort
 
 
@@ -28,6 +29,10 @@ class UserObjectRepository:
 		if not model:
 			raise ObjectAccessNotFoundError(user_id=str(user_id), object_id=str(object_id))
 		return model
+
+	async def has_access(self, user_id: UUID, object_id: UUID) -> bool:
+		model = await self._find_model(user_id, object_id)
+		return model is not None
 
 	async def add(self, user_id: UUID, object_id: UUID) -> None:
 		await self.session.execute(

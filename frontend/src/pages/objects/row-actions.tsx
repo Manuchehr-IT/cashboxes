@@ -4,14 +4,14 @@ import { DataTableRowActions } from "@/components/data-table/data-table-row-acti
 import type { Obj } from "@/pages/objects/types"
 
 export function ObjectRowActions({ table, row }: { table: Table<Obj>; row: Obj }) {
-	const { onEdit, onDelete } = table.options.meta ?? {}
+  const { onEdit, onDelete } = table.options.meta ?? {}
 
-	return (
-		<DataTableRowActions
-			actions={[
-				{ label: "Редактировать", icon: Pencil, onClick: () => onEdit?.(row) },
-				{ label: "Удалить", icon: Trash2, variant: "destructive", separatorBefore: true, onClick: () => onDelete?.(row) },
-			]}
-		/>
-	)
+  return (
+    <DataTableRowActions
+      actions={[
+        { label: "Редактировать", icon: Pencil, onClick: () => onEdit?.(row) },
+        { label: "Удалить", icon: Trash2, variant: "destructive", separatorBefore: true, onClick: () => onDelete?.(row) },
+      ]}
+    />
+  )
 }

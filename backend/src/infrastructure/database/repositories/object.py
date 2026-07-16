@@ -1,6 +1,7 @@
+import builtins
 from uuid import UUID
 
-from sqlalchemy import func, select, exists
+from sqlalchemy import exists, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -102,3 +103,17 @@ class ObjectRepository:
 		stmt = self._apply_filters(select(func.count()).select_from(ObjectModel), q, is_active)
 		result = await self.session.execute(stmt)
 		return result.scalar_one()
+
+	async def list_active(self) -> builtins.list[Object]:
+		result = await self.session.execute(
+			select(ObjectModel).where(ObjectModel.is_active)
+		)
+		return [ObjectMapper.to_domain(model) for model in result.scalars().all()]
+
+	async def list_active_by_ids(self, ids: builtins.list[UUID]) -> builtins.list[Object]:
+		if not ids:
+			return []
+		result = await self.session.execute(
+			select(ObjectModel).where(ObjectModel.id.in_(ids), ObjectModel.is_active)
+		)
+		return [ObjectMapper.to_domain(model) for model in result.scalars().all()]
