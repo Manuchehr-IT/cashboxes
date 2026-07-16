@@ -12,6 +12,5 @@ export default defineConfig({
   },
   server: {
     host: true,
-    allowedHosts: ["effectively-attached-manually-blue.trycloudflare.com"],
   },
 })

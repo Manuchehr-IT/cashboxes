@@ -39,7 +39,7 @@ services:
       - backend/.env
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.cashboxes_backend.rule=Host(`api.domain.com`)"
+      - "traefik.http.routers.cashboxes_backend.rule=Host(`${BACKEND_DOMAIN}`)"
       - "traefik.http.routers.cashboxes_backend.entrypoints=websecure"
       - "traefik.http.routers.cashboxes_backend.tls=true"
       - "traefik.http.routers.cashboxes_backend.tls.certresolver=myresolver"
@@ -70,17 +70,15 @@ services:
       context: frontend
       dockerfile: Dockerfile.production
       args:
-        VITE_API_URL: https://api.domain.com
+        VITE_API_URL: ${VITE_API_URL}
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.cashboxes_frontend.rule=Host(`domain.com`)"
+      - "traefik.http.routers.cashboxes_frontend.rule=Host(`${FRONTEND_DOMAIN}`)"
       - "traefik.http.routers.cashboxes_frontend.entrypoints=websecure"
       - "traefik.http.routers.cashboxes_frontend.tls=true"
       - "traefik.http.routers.cashboxes_frontend.tls.certresolver=myresolver"
       - "traefik.http.routers.cashboxes_frontend.priority=10"
       - "traefik.http.services.cashboxes_frontend.loadbalancer.server.port=80"
-    environment:
-      CHOKIDAR_USEPOLLING: true
     networks:
       - app-network
       - web

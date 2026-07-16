@@ -21,8 +21,19 @@ cp backend/.env.example backend/.env
 docker compose up -d --build
 ```
 
-Backend поднимется на `http://localhost:8000`, миграции применяются автоматически при старте
-контейнера.
+Backend поднимется на `http://localhost:8000`. Миграции **не** применяются автоматически при
+старте контейнера — после первого поднятия (и после каждого деплоя с новыми миграциями) нужно
+накатить их вручную:
+
+```bash
+docker compose exec backend alembic upgrade head
+```
+
+> `docker-compose.override.yml` в `.gitignore` и на сервер не попадает — деплой через git
+> (`clone`/`pull`) всегда поднимает именно продовую конфигурацию из `docker-compose.yml`.
+> Если разворачиваете иначе (например, `rsync` с локальной машины), проверьте, что override-файл
+> в переносимый набор не попадает — иначе Traefik-роутинг для сервисов окажется выключен, а
+> backend/frontend запустятся в dev-режиме.
 
 ## Переменные окружения
 
@@ -36,6 +47,7 @@ Backend поднимется на `http://localhost:8000`, миграции пр
 | `DATABASE__NAME`, `DATABASE__USER`, `DATABASE__PASSWORD`, `DATABASE__HOST`, `DATABASE__PORT` | PostgreSQL |
 | `REDIS__HOST`, `REDIS__PORT` | Redis |
 | `VITE_API_URL` | адрес backend API для фронтенда |
+| `BACKEND_DOMAIN`, `FRONTEND_DOMAIN` | домены для Traefik-лейблов (`Host(...)`) в проде; на локали можно оставить `localhost` |
 
 `backend/.env` (только backend-контейнер):
 
