@@ -19,7 +19,8 @@ class SetUserPasswordCommand(BaseModel):
 	password: str
 
 class DeleteUserCommand(BaseModel):
-	id: UUID
+	actor_id: UUID
+	user_id: UUID
 
 
 class SyncUserObjectsCommand(BaseModel):

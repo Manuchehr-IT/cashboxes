@@ -106,7 +106,7 @@ export function ObjectsPage() {
     try {
       const { successCount, failCount } = await runBulkAction(selectedIds, (id) => deleteMutation.mutateAsync(id))
       if (failCount === 0) toast.success(`Удалено объектов: ${successCount}`)
-      else if (successCount > 0) toast.warning(`Удалено ${successCount} из ${selectedIds.length}, ${failCount} с ошибкой`)
+      else if (successCount > 0) toast.warning(`Удалено ${successCount} из ${selectedIds.length}`)
       else toast.error("Не удалось удалить объекты")
       clearSelection()
     } finally {

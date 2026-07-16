@@ -135,7 +135,7 @@ export function AddUserModal({ open, onOpenChange }: AddUserModalProps) {
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent position="popper" align="start">
                       <SelectItem value="true">Активный</SelectItem>
                       <SelectItem value="false">Неактивный</SelectItem>
                     </SelectContent>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
@@ -150,12 +150,23 @@ export function CashboxesPage() {
   // structuralSharing переиспользует ссылку data, если ответ не изменился
   // (например, повторный клик «Обновить» без изменений в 1C) — тогда эффект
   // на [query.data] не сработал бы, хотя запрос реально прошёл успешно.
+  //
+  // Ждём !isFetching и дедуплицируем по dataUpdatedAt через ref, иначе при
+  // повторном заходе на страницу с уже закэшированными данными react-query
+  // (refetchOnMount) мгновенно отдаёт старые данные И тут же фоново их
+  // перезапрашивает, а React StrictMode в dev дополнительно дважды
+  // вызывает сам эффект — без этой защиты получается до 3 тостов на одно
+  // открытие страницы вместо одного.
+  const lastToastedAt = useRef(0)
   useEffect(() => {
+    if (query.isFetching) return
     if (!query.data) return
+    if (lastToastedAt.current === query.dataUpdatedAt) return
+    lastToastedAt.current = query.dataUpdatedAt
     const count = countCashboxes(query.data.items)
     toast.success(`Данные по ${count} ${cashboxesDative(count)} успешно получены`)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query.dataUpdatedAt])
+  }, [query.dataUpdatedAt, query.isFetching])
 
   const handleRefresh = async () => {
     try {

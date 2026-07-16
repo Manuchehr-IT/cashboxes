@@ -10,6 +10,7 @@ export function useUpdate() {
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: ["users"] })
       queryClient.invalidateQueries({ queryKey: ["user", id] })
+      queryClient.invalidateQueries({ queryKey: ["me"] })
     },
   })
 }

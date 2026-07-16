@@ -4,6 +4,8 @@ import { isAxiosError } from "axios"
 const ERROR_CODE_MESSAGES: Record<string, string> = {
   self_access_forbidden: "Нельзя изменить доступ к объектам для самого себя",
   admin_access_forbidden: "Нельзя изменить доступ к объектам для администратора",
+  self_deletion_forbidden: "Нельзя удалить самого себя",
+  admin_deletion_forbidden: "Нельзя удалить администратора",
 }
 
 interface GetErrorMessageOptions {

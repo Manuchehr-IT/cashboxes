@@ -11,10 +11,10 @@ class ListUserObjects:
 		async with self.uow:
 			items = await self.uow.user_object.list_all_with_access(
 				user_id=query.user_id,
+				is_assigned=query.is_assigned,
+				sort=query.sort,
 				limit=query.limit,
 				offset=query.offset,
-				sort=query.sort,
-				is_assigned=query.is_assigned,
 			)
 			count = await self.uow.user_object.count_all_with_access(
 				user_id=query.user_id,

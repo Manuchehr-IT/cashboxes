@@ -11,11 +11,11 @@ class ListUsers:
 	async def execute(self, query: ListUsersQuery) -> ListUsersDTO:
 		async with self.uow:
 			users = await self.uow.user.list(
+				q=query.q,
+				is_active=query.is_active,
+				sort=query.sort,
 				limit=query.limit,
 				offset=query.offset,
-				q=query.q,
-				sort=query.sort,
-				is_active=query.is_active,
 			)
 			count = await self.uow.user.count(
 				q=query.q,

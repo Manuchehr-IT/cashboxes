@@ -67,5 +67,5 @@ class UpdateUserMapper:
 
 class DeleteUserMapper:
 	@staticmethod
-	def to_command(id: UUID) -> DeleteUserCommand:
-		return DeleteUserCommand(id=id)
+	def to_command(user_id: UUID, actor_id: UUID) -> DeleteUserCommand:
+		return DeleteUserCommand(user_id=user_id, actor_id=actor_id)

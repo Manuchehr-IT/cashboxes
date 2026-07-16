@@ -39,3 +39,15 @@ class AdminAccessForbiddenError(ForbiddenError):
 
 	def __init__(self) -> None:
 		super().__init__("Cannot modify object access for an admin user")
+
+class SelfDeletionForbiddenError(ForbiddenError):
+	code = "self_deletion_forbidden"
+
+	def __init__(self) -> None:
+		super().__init__("Cannot delete yourself")
+
+class AdminDeletionForbiddenError(ForbiddenError):
+	code = "admin_deletion_forbidden"
+
+	def __init__(self) -> None:
+		super().__init__("Cannot delete an admin user")

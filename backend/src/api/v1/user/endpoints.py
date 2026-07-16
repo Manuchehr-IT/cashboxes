@@ -2,7 +2,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 
-from src.api.dependencies import require_admin_role
+from src.api.dependencies import get_current_user, require_admin_role
 from src.api.v1.user import schemas
 from src.api.v1.user.dependencies import (
 	provide_create_user,
@@ -21,6 +21,7 @@ from src.api.v1.user.mappers import (
 	UserWithPasswordMapper,
 )
 from src.application.user.use_cases import CreateUser, DeleteUser, GetUser, ListUsers, UpdateUser
+from src.domain.user.entities import User
 
 router = APIRouter(prefix="/users", tags=["Users"], dependencies=[Depends(require_admin_role)])
 
@@ -70,6 +71,7 @@ async def update_user_endpoint(
 async def delete_user_endpoint(
 	user_id: UUID,
 	delete_user: DeleteUser = Depends(provide_delete_user),
+	current_user: User = Depends(get_current_user),
 ):
-	command = DeleteUserMapper.to_command(id=user_id)
+	command = DeleteUserMapper.to_command(user_id=user_id, actor_id=current_user.id)
 	await delete_user.execute(command)

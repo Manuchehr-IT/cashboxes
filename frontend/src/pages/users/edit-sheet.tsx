@@ -97,7 +97,7 @@ export function EditUserSheet({ open, onOpenChange, user }: EditUserSheetProps) 
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent position="popper" side="bottom" align="start">
+                <SelectContent position="popper" align="start">
                   <SelectItem value="true">Активный</SelectItem>
                   <SelectItem value="false">Неактивный</SelectItem>
                 </SelectContent>
