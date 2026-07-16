@@ -22,6 +22,7 @@ import {
 import { useMe } from "@/hooks/admin/use-me";
 import { useLogout } from "@/hooks/auth/use-logout";
 import { navigationGroups } from "@/lib/sidebar-navigation";
+import { CashboxesLogo } from "./cashboxes-logo";
 
 export function AppSidebar() {
   const { pathname } = useLocation();
@@ -37,8 +38,13 @@ export function AppSidebar() {
 
   return (
     <Sidebar variant="inset" collapsible="icon">
-      <SidebarHeader className="px-4 py-3 font-semibold tracking-tight">
-        Cashboxes
+      <SidebarHeader>
+        <div className="flex h-8 items-center gap-2">
+          <CashboxesLogo className="!size-8 shrink-0 rounded-lg" />
+          <span className="truncate text-base font-semibold group-data-[collapsible=icon]:hidden">
+            Cashboxes
+          </span>
+        </div>
       </SidebarHeader>
 
       <SidebarSeparator className="data-horizontal:w-auto mr-2" />

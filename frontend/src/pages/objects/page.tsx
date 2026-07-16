@@ -4,6 +4,7 @@ import { toast } from "sonner"
 import { Circle, CircleOff, Plus, RefreshCw, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
+import { ConfirmDialog } from "@/components/confirm-dialog"
 import { getErrorMessage } from "@/lib/api-error"
 import { runBulkAction } from "@/lib/bulk-action"
 import {
@@ -82,6 +83,8 @@ export function ObjectsPage() {
 
   const [isUpdatingStatuses, setIsUpdatingStatuses] = useState(false)
   const [isDeletingSelected, setIsDeletingSelected] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<Obj | null>(null)
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
 
   const updateMutation = useUpdate()
   const deleteMutation = useDelete()
@@ -101,7 +104,8 @@ export function ObjectsPage() {
     }
   }
 
-  const handleDeleteSelected = async () => {
+  const confirmDeleteSelected = async () => {
+    setBulkDeleteOpen(false)
     setIsDeletingSelected(true)
     try {
       const { successCount, failCount } = await runBulkAction(selectedIds, (id) => deleteMutation.mutateAsync(id))
@@ -115,12 +119,15 @@ export function ObjectsPage() {
   }
 
   const handleEdit = (o: Obj) => { setEditTarget(o); setEditOpen(true) }
-  const handleDelete = async (o: Obj) => {
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
     try {
-      await deleteMutation.mutateAsync(o.id)
-      toast.success(`Объект «${o.title}» удалён`)
+      await deleteMutation.mutateAsync(deleteTarget.id)
+      toast.success(`Объект «${deleteTarget.title}» удалён`)
     } catch (err) {
       toast.error(getErrorMessage(err))
+    } finally {
+      setDeleteTarget(null)
     }
   }
 
@@ -156,7 +163,7 @@ export function ObjectsPage() {
         {...tableProps}
         columns={columns}
         filterPlaceholder="Поиск объектов..."
-        meta={{ onEdit: handleEdit, onDelete: handleDelete }}
+        meta={{ onEdit: handleEdit, onDelete: setDeleteTarget }}
         toolbar={
           <DataTableFacetedFilter
             title="Статус"
@@ -207,7 +214,7 @@ export function ObjectsPage() {
               size="sm"
               className="h-7 gap-1.5 text-xs"
               disabled={isDeletingSelected}
-              onClick={handleDeleteSelected}
+              onClick={() => setBulkDeleteOpen(true)}
             >
               {isDeletingSelected
                 ? <Spinner size={12} />
@@ -221,6 +228,21 @@ export function ObjectsPage() {
 
       <AddObjectModal open={addOpen} onOpenChange={setAddOpen} />
       <EditObjectSheet open={editOpen} onOpenChange={setEditOpen} object={editTarget} />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Удалить объект?"
+        description={`Объект «${deleteTarget?.title}» будет удалён без возможности восстановления.`}
+        onConfirm={confirmDelete}
+      />
+      <ConfirmDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        title="Удалить выбранные объекты?"
+        description={`Будет удалено объектов: ${selectedCount}. Это действие необратимо.`}
+        onConfirm={confirmDeleteSelected}
+      />
     </>
   )
 }

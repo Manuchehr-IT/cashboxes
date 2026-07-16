@@ -1,6 +1,7 @@
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
+import { ThemeToggle } from "./theme-toggle"
 
 type AppHeaderProps = {
   scrolled: boolean
@@ -19,6 +20,7 @@ export function AppHeader({ scrolled }: AppHeaderProps) {
       <div className="relative flex h-full items-center gap-3 p-4 sm:gap-4">
         <SidebarTrigger variant="outline" />
         <Separator orientation="vertical" className="h-6" />
+        <ThemeToggle className="ml-auto" />
       </div>
     </header>
   )

@@ -7,6 +7,7 @@ import { getErrorMessage } from "@/lib/api-error"
 import { runBulkAction } from "@/lib/bulk-action"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
+import { ConfirmDialog } from "@/components/confirm-dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -84,6 +85,8 @@ export function UsersPage() {
 
   const [isUpdatingStatuses, setIsUpdatingStatuses] = useState(false)
   const [isDeletingSelected, setIsDeletingSelected] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<User | null>(null)
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
 
   const updateMutation = useUpdate()
   const deleteMutation = useDelete()
@@ -103,7 +106,8 @@ export function UsersPage() {
     }
   }
 
-  const handleDeleteSelected = async () => {
+  const confirmDeleteSelected = async () => {
+    setBulkDeleteOpen(false)
     setIsDeletingSelected(true)
     try {
       const { successCount, failCount } = await runBulkAction(selectedIds, (id) => deleteMutation.mutateAsync(id))
@@ -118,12 +122,15 @@ export function UsersPage() {
 
   const handleOpen = (u: User) => navigate(`/users/${u.id}`)
   const handleEdit = (u: User) => { setEditTarget(u); setEditOpen(true) }
-  const handleDelete = async (u: User) => {
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
     try {
-      await deleteMutation.mutateAsync(u.id)
-      toast.success(`Пользователь «${u.username}» удалён`)
+      await deleteMutation.mutateAsync(deleteTarget.id)
+      toast.success(`Пользователь «${deleteTarget.username}» удалён`)
     } catch (err) {
       toast.error(getErrorMessage(err))
+    } finally {
+      setDeleteTarget(null)
     }
   }
 
@@ -159,7 +166,7 @@ export function UsersPage() {
         {...tableProps}
         columns={columns}
         filterPlaceholder="Поиск пользователей..."
-        meta={{ onOpen: handleOpen, onEdit: handleEdit, onDelete: handleDelete }}
+        meta={{ onOpen: handleOpen, onEdit: handleEdit, onDelete: setDeleteTarget }}
         toolbar={
           <DataTableFacetedFilter
             title="Статус"
@@ -210,7 +217,7 @@ export function UsersPage() {
               size="sm"
               className="h-7 gap-1.5 text-xs"
               disabled={isDeletingSelected}
-              onClick={handleDeleteSelected}
+              onClick={() => setBulkDeleteOpen(true)}
             >
               {isDeletingSelected
                 ? <Spinner size={12} />
@@ -224,6 +231,21 @@ export function UsersPage() {
 
       <AddUserModal open={addOpen} onOpenChange={setAddOpen} />
       <EditUserSheet open={editOpen} onOpenChange={setEditOpen} user={editTarget} />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Удалить пользователя?"
+        description={`Пользователь «${deleteTarget?.username}» будет удалён без возможности восстановления.`}
+        onConfirm={confirmDelete}
+      />
+      <ConfirmDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        title="Удалить выбранных пользователей?"
+        description={`Будет удалено пользователей: ${selectedCount}. Это действие необратимо.`}
+        onConfirm={confirmDeleteSelected}
+      />
     </>
   )
 }
