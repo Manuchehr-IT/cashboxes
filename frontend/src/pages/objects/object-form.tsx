@@ -24,7 +24,10 @@ export function ObjectFormFields() {
 
       <div className="space-y-1.5">
         <Label htmlFor="obj-url">URL (1C)</Label>
-        <Input id="obj-url" placeholder="http://1c.example.com/api/cashbox" {...form.register("url")} />
+        <Input id="obj-url" placeholder="http://1c.example.com/hs/api/" {...form.register("url")} />
+        <p className="text-xs text-muted-foreground">
+          Базовый адрес без эндпоинта — cashoborot/cashdetails подставляются автоматически
+        </p>
         {errors.url && <p className="text-xs text-destructive">{errors.url.message}</p>}
       </div>
 

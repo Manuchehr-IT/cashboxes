@@ -19,8 +19,9 @@ class OneCClient:
 		self.auth = (username, password)
 
 	async def fetch_cashboxes(self, url: str, date_from: date | None, date_to: date | None) -> list[OneCCashbox]:
+		cashboxes_url = self._child_url(url, "cashoborot")
 		params = self._date_params(date_from, date_to)
-		parsed = await self._fetch(url, params, OneCResponse)
+		parsed = await self._fetch(cashboxes_url, params, OneCResponse)
 		return parsed.data
 
 	async def fetch_cash_details(
@@ -30,7 +31,7 @@ class OneCClient:
 		date_from: date | None,
 		date_to: date | None,
 	) -> list[OneCCashDetail]:
-		details_url = self._sibling_url(url, "cashdetails")
+		details_url = self._child_url(url, "cashdetails")
 		params = self._date_params(date_from, date_to)
 		params["cashid"] = cash_id
 		parsed = await self._fetch(details_url, params, OneCCashDetailsResponse)
@@ -57,14 +58,13 @@ class OneCClient:
 		return parsed
 
 	@staticmethod
-	def _sibling_url(url: str, name: str) -> str:
-		"""Заменяет последний сегмент пути на `name`: .../hs/api/cashoborot -> .../hs/api/{name}.
-		В Object.url хранится конкретный эндпоинт списка касс (имя последнего сегмента у каждого
-		1C-инстанса может отличаться) — cashdetails лежит рядом с ним, а не внутри."""
+	def _child_url(url: str, name: str) -> str:
+		"""Добавляет `name` последним сегментом пути: .../hs/api/ -> .../hs/api/{name}.
+		Object.url хранит базовый префикс 1C-инстанса, а не готовый эндпоинт — cashoborot
+		(список касс) и cashdetails (детализация) навешиваются на него по требованию."""
 		parts = urlsplit(url)
 		path = parts.path.rstrip("/")
-		parent_path = path.rsplit("/", 1)[0] if "/" in path else ""
-		return urlunsplit((parts.scheme, parts.netloc, f"{parent_path}/{name}", "", ""))
+		return urlunsplit((parts.scheme, parts.netloc, f"{path}/{name}", "", ""))
 
 	@staticmethod
 	def _date_params(date_from: date | None, date_to: date | None) -> dict[str, Any]:

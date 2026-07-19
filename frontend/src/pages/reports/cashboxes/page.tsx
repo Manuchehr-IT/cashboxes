@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
@@ -6,11 +6,10 @@ import { RefreshCw, TriangleAlert } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { DataTableFacetedFilter, type FacetedFilterOption } from "@/components/data-table/data-table-faceted-filter"
 import { getErrorMessage } from "@/lib/api-error"
-import { cn } from "@/lib/utils"
 import { cashboxesApi } from "@/pages/reports/cashboxes/api/cashboxes"
 import type { ListCashboxesParams, ObjectCashboxes } from "@/pages/reports/cashboxes/types"
 
@@ -73,30 +72,13 @@ function sumTotals(items: ObjectCashboxes[], currency: string) {
   )
 }
 
-function StatTile({ label, value, tone }: { label: string; value: string; tone?: "positive" | "negative" }) {
-  return (
-    <div className="rounded-lg border bg-card px-4 py-2.5 min-w-[128px]">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p
-        className={cn(
-          "text-lg font-semibold mt-0.5",
-          tone === "positive" && "text-green-600",
-          tone === "negative" && "text-red-600"
-        )}
-      >
-        {value}
-      </p>
-    </div>
-  )
-}
-
 export function CashboxesPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [selectedCurrency, setSelectedCurrency] = useState("")
 
   const dateFrom = searchParams.get("date_from") ?? ""
   const dateTo = searchParams.get("date_to") ?? ""
+  const selectedCurrencies = searchParams.getAll("currency")
 
   const setDateFrom = (value: string) => {
     setSearchParams((prev) => {
@@ -125,6 +107,15 @@ export function CashboxesPage() {
     }, { replace: true })
   }
 
+  const setCurrencies = (values: string[]) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete("currency")
+      for (const value of values) next.append("currency", value)
+      return next
+    }, { replace: true })
+  }
+
   const hasAnyDate = !!(dateFrom || dateTo)
   const validationMessage = getDateValidationMessage(dateFrom, dateTo)
   const bothDatesValid = !!dateFrom && !!dateTo && validationMessage === null
@@ -142,9 +133,24 @@ export function CashboxesPage() {
   const items = query.data?.items ?? []
   const failedObjects = query.data?.failed_objects ?? []
 
-  const currencies = useMemo(() => getCurrencies(items), [items])
-  const activeCurrency = currencies.includes(selectedCurrency) ? selectedCurrency : currencies[0] ?? ""
-  const totals = useMemo(() => sumTotals(items, activeCurrency), [items, activeCurrency])
+  const allCurrencies = useMemo(() => getCurrencies(items), [items])
+  const currencyOptions: FacetedFilterOption[] = useMemo(
+    () => allCurrencies.map((currency) => ({ label: currency, value: currency })),
+    [allCurrencies]
+  )
+  // Пустой выбор = фильтр не применён, показываем все валюты (значение по умолчанию).
+  const visibleCurrencies = selectedCurrencies.length > 0
+    ? allCurrencies.filter((c) => selectedCurrencies.includes(c))
+    : allCurrencies
+
+  const filteredItems = selectedCurrencies.length === 0
+    ? items
+    : items
+      .map((group) => ({
+        ...group,
+        cashboxes: group.cashboxes.filter((c) => selectedCurrencies.includes(c.currency)),
+      }))
+      .filter((group) => group.cashboxes.length > 0)
 
   // Триггерим на dataUpdatedAt, а не на сам query.data: react-query с
   // structuralSharing переиспользует ссылку data, если ответ не изменился
@@ -189,87 +195,103 @@ export function CashboxesPage() {
 
   return (
     <>
-      <div className="flex items-start justify-between gap-6 flex-wrap">
-        <div className="flex flex-col gap-4">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight">Кассы</h2>
-            <p className="text-muted-foreground">
-              {bothDatesValid ? "Остатки и обороты за выбранный период" : "Остатки и обороты за сегодня"}
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Input
-                  id="date-from"
-                  type="date"
-                  value={dateFrom}
-                  min={MIN_DATE}
-                  max={MAX_DATE}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                  className="w-[160px]"
-                />
-                <div className="h-px w-3 bg-border shrink-0" />
-                <Input
-                  id="date-to"
-                  type="date"
-                  value={dateTo}
-                  min={MIN_DATE}
-                  max={MAX_DATE}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  className="w-[160px]"
-                />
-              </div>
-              {hasAnyDate && (
-                <Button variant="default" onClick={resetDates}>
-                  Сбросить
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={handleRefresh}
-                disabled={query.isFetching}
-                aria-label="Обновить"
-              >
-                {query.isRefetching ? <Spinner size={16} /> : <RefreshCw className="size-4" />}
-              </Button>
-            </div>
-            {hasAnyDate && validationMessage && (
-              <p className="text-xs text-amber-600">{validationMessage}</p>
-            )}
-          </div>
+      <div className="flex flex-col gap-4">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Кассы</h2>
+          <p className="text-muted-foreground">
+            {bothDatesValid ? "Остатки и обороты за выбранный период" : "Остатки и обороты за сегодня"}
+          </p>
         </div>
 
-        {items.length > 0 && (
-          <div className="flex flex-col gap-2 items-end">
-            {currencies.length > 1 && (
-              <Select value={activeCurrency} onValueChange={setSelectedCurrency}>
-                <SelectTrigger className="w-[100px] h-8">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent position="popper" align="end">
-                  {currencies.map((cur) => (
-                    <SelectItem key={cur} value={cur}>{cur}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <StatTile label="Начальный остаток" value={formatAmount(totals.ost1)} />
-              <StatTile label="Приход" value={formatAmount(totals.sump)} tone="positive" />
-              <StatTile label="Расход" value={formatAmount(totals.sumr)} tone="negative" />
-              <StatTile label="Конечный остаток" value={formatAmount(totals.ost2)} />
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Input
+                id="date-from"
+                type="date"
+                value={dateFrom}
+                min={MIN_DATE}
+                max={MAX_DATE}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="w-[160px]"
+              />
+              <div className="h-px w-3 bg-border shrink-0" />
+              <Input
+                id="date-to"
+                type="date"
+                value={dateTo}
+                min={MIN_DATE}
+                max={MAX_DATE}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="w-[160px]"
+              />
             </div>
+            {currencyOptions.length > 1 && (
+              <DataTableFacetedFilter
+                title="Валюта"
+                options={currencyOptions}
+                selected={selectedCurrencies}
+                onChange={setCurrencies}
+              />
+            )}
+            {hasAnyDate && (
+              <Button variant="default" onClick={resetDates}>
+                Сбросить
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleRefresh}
+              disabled={query.isFetching}
+              aria-label="Обновить"
+            >
+              {query.isRefetching ? <Spinner size={16} /> : <RefreshCw className="size-4" />}
+            </Button>
           </div>
-        )}
+          {hasAnyDate && validationMessage && (
+            <p className="text-xs text-amber-600">{validationMessage}</p>
+          )}
+        </div>
       </div>
 
       {failedObjects.length > 0 && (
         <div className="flex items-center gap-2 rounded-md border border-amber-300 bg-amber-200/30 px-4 py-3 text-sm text-amber-700 dark:text-amber-100">
           <TriangleAlert className="size-4 shrink-0" />
           Не удалось получить данные по объектам: {failedObjects.map((f) => f.object_title).join(", ")}
+        </div>
+      )}
+
+      {visibleCurrencies.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <h3 className="text-sm font-medium text-muted-foreground">Итого</h3>
+          <div className="rounded-md border">
+            <Table className="table-fixed">
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="h-8 w-[80px]">Валюта</TableHead>
+                  <TableHead className="h-8 text-right w-[120px]">Начальный</TableHead>
+                  <TableHead className="h-8 text-right w-[120px]">Приход</TableHead>
+                  <TableHead className="h-8 text-right w-[120px]">Расход</TableHead>
+                  <TableHead className="h-8 text-right w-[120px]">Конечный</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {visibleCurrencies.map((currency) => {
+                  const totals = sumTotals(items, currency)
+                  return (
+                    <TableRow key={currency} className="hover:bg-transparent">
+                      <TableCell className="py-1.5 font-medium">{currency}</TableCell>
+                      <TableCell className="py-1.5 text-right tabular-nums">{formatAmount(totals.ost1)}</TableCell>
+                      <TableCell className="py-1.5 text-right tabular-nums text-green-600">{formatAmount(totals.sump)}</TableCell>
+                      <TableCell className="py-1.5 text-right tabular-nums text-red-600">{formatAmount(totals.sumr)}</TableCell>
+                      <TableCell className="py-1.5 text-right tabular-nums font-medium">{formatAmount(totals.ost2)}</TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       )}
 
@@ -285,9 +307,13 @@ export function CashboxesPage() {
         <div className="flex items-center justify-center py-16 text-muted-foreground">
           Нет доступных объектов с кассами
         </div>
+      ) : filteredItems.length === 0 ? (
+        <div className="flex items-center justify-center py-16 text-muted-foreground">
+          Нет касс с выбранной валютой
+        </div>
       ) : (
         <div className="flex flex-col gap-4">
-          {items.map((group) => (
+          {filteredItems.map((group) => (
             <Card key={group.object_id}>
               <CardHeader>
                 <CardTitle>{group.object_title}</CardTitle>
