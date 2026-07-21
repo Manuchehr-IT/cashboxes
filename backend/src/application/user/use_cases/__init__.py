@@ -5,6 +5,7 @@ from .grant_object_access import GrantObjectAccess
 from .list import ListUsers
 from .list_objects import ListUserObjects
 from .revoke_object_access import RevokeObjectAccess
+from .set_password import SetUserPassword
 from .sync_objects import SyncUserObjects
 from .update import UpdateUser
 
@@ -16,6 +17,7 @@ __all__ = [
 	"ListUsers",
 	"ListUserObjects",
 	"RevokeObjectAccess",
+	"SetUserPassword",
 	"SyncUserObjects",
 	"UpdateUser",
 ]

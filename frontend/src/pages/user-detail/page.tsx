@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { usersApi } from "@/pages/users/api/users"
 import { EditUserSheet } from "@/pages/users/edit-sheet"
+import { SetPasswordModal } from "@/pages/users/set-password-modal"
 import { UserObjectsPage } from "@/pages/user-objects"
 
 type Tab = "profile" | "objects"
@@ -42,9 +43,10 @@ export function UserDetailPage() {
   const user = userQuery.data ?? null
 
   const [editOpen, setEditOpen] = useState(false)
+  const [passwordOpen, setPasswordOpen] = useState(false)
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-1 flex-col gap-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
@@ -90,9 +92,14 @@ export function UserDetailPage() {
 
         <div className="flex items-center gap-2 shrink-0">
           {user && (
-            <Button variant="outline" size="lg" onClick={() => setEditOpen(true)}>
-              Редактировать
-            </Button>
+            <>
+              <Button variant="outline" size="lg" onClick={() => setPasswordOpen(true)}>
+                Изменить пароль
+              </Button>
+              <Button variant="outline" size="lg" onClick={() => setEditOpen(true)}>
+                Редактировать
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -145,7 +152,10 @@ export function UserDetailPage() {
       {activeTab === "objects" && userId && <UserObjectsPage userId={userId} />}
 
       {user && (
-        <EditUserSheet open={editOpen} onOpenChange={setEditOpen} user={user} />
+        <>
+          <EditUserSheet open={editOpen} onOpenChange={setEditOpen} user={user} />
+          <SetPasswordModal open={passwordOpen} onOpenChange={setPasswordOpen} user={user} />
+        </>
       )}
     </div>
   )

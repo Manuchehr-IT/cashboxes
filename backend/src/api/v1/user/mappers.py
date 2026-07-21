@@ -1,6 +1,11 @@
 from uuid import UUID
 
-from src.application.user.commands import CreateUserCommand, DeleteUserCommand, UpdateUserCommand
+from src.application.user.commands import (
+	CreateUserCommand,
+	DeleteUserCommand,
+	SetUserPasswordCommand,
+	UpdateUserCommand,
+)
 from src.application.user.dtos import ListUsersDTO, UserDTO, UserWithPasswordDTO
 from src.application.user.queries import GetUserQuery, ListUsersQuery
 from src.core.sorting import parse_sort
@@ -69,3 +74,8 @@ class DeleteUserMapper:
 	@staticmethod
 	def to_command(user_id: UUID, actor_id: UUID) -> DeleteUserCommand:
 		return DeleteUserCommand(user_id=user_id, actor_id=actor_id)
+
+class SetUserPasswordMapper:
+	@staticmethod
+	def to_command(request: schemas.SetUserPasswordRequest, user_id: UUID, actor_id: UUID) -> SetUserPasswordCommand:
+		return SetUserPasswordCommand(user_id=user_id, actor_id=actor_id, password=request.password)

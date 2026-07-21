@@ -15,7 +15,8 @@ class UpdateUserCommand(BaseModel):
 	is_active: bool | UnsetType = UNSET
 
 class SetUserPasswordCommand(BaseModel):
-	id: UUID
+	actor_id: UUID
+	user_id: UUID
 	password: str
 
 class DeleteUserCommand(BaseModel):

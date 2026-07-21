@@ -9,6 +9,7 @@ from src.api.v1.user.dependencies import (
 	provide_delete_user,
 	provide_get_user,
 	provide_list_users,
+	provide_set_user_password,
 	provide_update_user,
 )
 from src.api.v1.user.mappers import (
@@ -16,11 +17,12 @@ from src.api.v1.user.mappers import (
 	DeleteUserMapper,
 	GetUserMapper,
 	ListUsersMapper,
+	SetUserPasswordMapper,
 	UpdateUserMapper,
 	UserMapper,
 	UserWithPasswordMapper,
 )
-from src.application.user.use_cases import CreateUser, DeleteUser, GetUser, ListUsers, UpdateUser
+from src.application.user.use_cases import CreateUser, DeleteUser, GetUser, ListUsers, SetUserPassword, UpdateUser
 from src.domain.user.entities import User
 
 router = APIRouter(prefix="/users", tags=["Users"], dependencies=[Depends(require_admin_role)])
@@ -75,3 +77,13 @@ async def delete_user_endpoint(
 ):
 	command = DeleteUserMapper.to_command(user_id=user_id, actor_id=current_user.id)
 	await delete_user.execute(command)
+
+@router.patch("/{user_id}/password", status_code=204)
+async def set_user_password_endpoint(
+	user_id: UUID,
+	request: schemas.SetUserPasswordRequest,
+	set_user_password: SetUserPassword = Depends(provide_set_user_password),
+	current_user: User = Depends(get_current_user),
+):
+	command = SetUserPasswordMapper.to_command(request, user_id=user_id, actor_id=current_user.id)
+	await set_user_password.execute(command)

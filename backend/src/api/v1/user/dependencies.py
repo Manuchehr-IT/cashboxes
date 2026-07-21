@@ -1,7 +1,7 @@
 from fastapi import Depends
 
 from src.api.dependencies import get_hasher, get_uow
-from src.application.user.use_cases import CreateUser, DeleteUser, GetUser, ListUsers, UpdateUser
+from src.application.user.use_cases import CreateUser, DeleteUser, GetUser, ListUsers, SetUserPassword, UpdateUser
 from src.infrastructure.database import UnitOfWork
 from src.infrastructure.security.hasher import Hasher
 
@@ -23,3 +23,9 @@ def provide_update_user(uow: UnitOfWork = Depends(get_uow)) -> UpdateUser:
 
 def provide_delete_user(uow: UnitOfWork = Depends(get_uow)) -> DeleteUser:
 	return DeleteUser(uow)
+
+def provide_set_user_password(
+	uow: UnitOfWork = Depends(get_uow),
+	hasher: Hasher = Depends(get_hasher),
+) -> SetUserPassword:
+	return SetUserPassword(uow, hasher)

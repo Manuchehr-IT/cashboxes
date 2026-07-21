@@ -33,4 +33,7 @@ export const usersApi = {
 
   delete: (userId: string): Promise<void> =>
     api.delete(`/users/${userId}`).then(() => undefined),
+
+  setPassword: (userId: string, password: string): Promise<void> =>
+    api.patch(`/users/${userId}/password`, { password }).then(() => undefined),
 }

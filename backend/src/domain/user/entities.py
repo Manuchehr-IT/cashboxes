@@ -54,6 +54,10 @@ class User:
 			self.is_admin = is_admin
 		self._touch()
 
+	def set_password(self, password_hash: str) -> None:
+		self.password_hash = password_hash
+		self._touch()
+
 	def grant_access(self, object_id: UUID) -> None:
 		user_object = UserObject.create(object_id=object_id)
 		if any(i.object_id == user_object.object_id for i in self._objects):

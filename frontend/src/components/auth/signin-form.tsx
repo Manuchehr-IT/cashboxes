@@ -3,6 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { CardContent, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
 import { Button } from "@/components/ui/button"
 import { Field, FieldLabel, FieldGroup } from "@/components/ui/field"
 import { FieldErrorIcon } from "@/components/ui/field-error-icon"
@@ -60,10 +61,9 @@ export function SigninForm({ onSubmit, isLoading, error }: Props) {
                     <FieldLabel htmlFor={field.name}>Пароль</FieldLabel>
                     <FieldErrorIcon message={fieldState.error?.message} />
                   </div>
-                  <Input
+                  <PasswordInput
                     {...field}
                     id={field.name}
-                    type="password"
                     autoComplete="current-password"
                     aria-invalid={fieldState.invalid}
                   />

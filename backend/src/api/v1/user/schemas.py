@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class CreateUserRequest(BaseModel):
@@ -11,6 +11,9 @@ class CreateUserRequest(BaseModel):
 class UpdateUserRequest(BaseModel):
 	username: str | None = None
 	is_active: bool | None = None
+
+class SetUserPasswordRequest(BaseModel):
+	password: str = Field(min_length=8)
 
 class UserResponse(BaseModel):
 	id: UUID

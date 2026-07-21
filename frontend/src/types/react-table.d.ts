@@ -10,6 +10,7 @@ declare module "@tanstack/react-table" {
   interface TableMeta<TData extends RowData> {
     onOpen?: (row: TData) => void
     onEdit?: (row: TData) => void
+    onChangePassword?: (row: TData) => void
     onDuplicate?: (row: TData) => void
     onFinish?: (row: TData) => void
     onCancel?: (row: TData) => void

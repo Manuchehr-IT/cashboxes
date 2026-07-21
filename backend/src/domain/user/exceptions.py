@@ -51,3 +51,9 @@ class AdminDeletionForbiddenError(ForbiddenError):
 
 	def __init__(self) -> None:
 		super().__init__("Cannot delete an admin user")
+
+class AdminPasswordChangeForbiddenError(ForbiddenError):
+	code = "admin_password_change_forbidden"
+
+	def __init__(self) -> None:
+		super().__init__("Cannot change the password of another admin user")

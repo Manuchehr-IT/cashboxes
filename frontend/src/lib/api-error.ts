@@ -6,6 +6,7 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
   admin_access_forbidden: "Нельзя изменить доступ к объектам для администратора",
   self_deletion_forbidden: "Нельзя удалить самого себя",
   admin_deletion_forbidden: "Нельзя удалить администратора",
+  admin_password_change_forbidden: "Нельзя изменить пароль другого администратора",
 }
 
 interface GetErrorMessageOptions {

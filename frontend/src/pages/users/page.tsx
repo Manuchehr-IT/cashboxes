@@ -27,6 +27,7 @@ import { useUpdate } from "@/pages/users/hooks/use-update"
 import { useDelete } from "@/pages/users/hooks/use-delete"
 import { AddUserModal } from "@/pages/users/add-modal"
 import { EditUserSheet } from "@/pages/users/edit-sheet"
+import { SetPasswordModal } from "@/pages/users/set-password-modal"
 import type { User } from "@/pages/users/types"
 
 const IS_ACTIVE_OPTIONS: FacetedFilterOption[] = [
@@ -82,6 +83,8 @@ export function UsersPage() {
   const [addOpen, setAddOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<User | null>(null)
   const [editOpen, setEditOpen] = useState(false)
+  const [passwordTarget, setPasswordTarget] = useState<User | null>(null)
+  const [passwordOpen, setPasswordOpen] = useState(false)
 
   const [isUpdatingStatuses, setIsUpdatingStatuses] = useState(false)
   const [isDeletingSelected, setIsDeletingSelected] = useState(false)
@@ -122,6 +125,7 @@ export function UsersPage() {
 
   const handleOpen = (u: User) => navigate(`/users/${u.id}`)
   const handleEdit = (u: User) => { setEditTarget(u); setEditOpen(true) }
+  const handleChangePassword = (u: User) => { setPasswordTarget(u); setPasswordOpen(true) }
   const confirmDelete = async () => {
     if (!deleteTarget) return
     try {
@@ -166,7 +170,7 @@ export function UsersPage() {
         {...tableProps}
         columns={columns}
         filterPlaceholder="Поиск пользователей..."
-        meta={{ onOpen: handleOpen, onEdit: handleEdit, onDelete: setDeleteTarget }}
+        meta={{ onOpen: handleOpen, onEdit: handleEdit, onChangePassword: handleChangePassword, onDelete: setDeleteTarget }}
         toolbar={
           <DataTableFacetedFilter
             title="Статус"
@@ -231,6 +235,7 @@ export function UsersPage() {
 
       <AddUserModal open={addOpen} onOpenChange={setAddOpen} />
       <EditUserSheet open={editOpen} onOpenChange={setEditOpen} user={editTarget} />
+      <SetPasswordModal open={passwordOpen} onOpenChange={setPasswordOpen} user={passwordTarget} />
 
       <ConfirmDialog
         open={!!deleteTarget}

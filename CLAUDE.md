@@ -75,6 +75,8 @@ src/
 - `GET /v1/users/{user_id}`
 - `PATCH /v1/users/{user_id}`
 - `DELETE /v1/users/{user_id}`
+- `PATCH /v1/users/{user_id}/password` — сменить пароль пользователя. Админ не может сменить пароль
+  другого админа (может — свой собственный); `ForbiddenError` иначе.
 
 ### User Object (только админы)
 - `GET /v1/users/{user_id}/objects` — все объекты с флагом `is_assigned`
