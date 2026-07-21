@@ -1,13 +1,14 @@
 FROM node:20-slim
 
-ARG VITE_API_URL
-ENV VITE_API_URL=$VITE_API_URL
-
 WORKDIR /app
 
 COPY package.json package-lock.json ./
 
 RUN npm ci
+
+# ARG/ENV идут после npm ci намеренно — см. Dockerfile.production.
+ARG VITE_API_URL
+ENV VITE_API_URL=$VITE_API_URL
 
 COPY . .
 

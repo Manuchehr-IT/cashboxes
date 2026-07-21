@@ -1,14 +1,17 @@
 # Stage 1
 FROM node:20-slim AS builder
 
-ARG VITE_API_URL
-ENV VITE_API_URL=$VITE_API_URL
-
 WORKDIR /app
 
 COPY package.json package-lock.json ./
 
 RUN npm ci
+
+# ARG/ENV идут после npm ci намеренно: значение VITE_API_URL меняется чаще, чем
+# зависимости, а Docker сбрасывает кэш у всех слоёв после изменившегося — если бы
+# ARG стоял раньше npm ci, смена URL заново скачивала бы все npm-пакеты.
+ARG VITE_API_URL
+ENV VITE_API_URL=$VITE_API_URL
 
 COPY . .
 
