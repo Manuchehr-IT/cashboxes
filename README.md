@@ -35,6 +35,31 @@ docker compose exec backend alembic upgrade head
 > в переносимый набор не попадает — иначе Traefik-роутинг для сервисов окажется выключен, а
 > backend/frontend запустятся в dev-режиме.
 
+## Деплой в локальной сети (без Traefik)
+
+Если сервер — обычный компьютер в локальной сети компании (без домена и внешнего доступа),
+используйте `docker-compose.lan.yml` вместо `docker-compose.yml`. Это отдельный самостоятельный
+compose-файл (не оверлей — Docker Compose не умеет вычитать лейблы оверлеем, только добавлять):
+без Traefik, без сети `web`, backend и frontend торчат наружу напрямую через `ports`.
+
+```bash
+docker compose -f docker-compose.lan.yml up -d --build
+docker compose -f docker-compose.lan.yml exec backend alembic upgrade head
+```
+
+В `.env` для этого сценария важно:
+
+- `VITE_API_URL` — не домен, а `http://<IP-сервера-в-сети>:8000` (порт backend, см. `BACKEND_PORT`
+  ниже). Значение вшивается в сборку фронтенда на этапе `docker build`, поменяли — нужно
+  пересобрать (`--build`).
+- `APP__ALLOWED_ORIGINS` — должен включать ориджин, с которого реально открывают сайт в браузере,
+  например `["http://<IP-сервера-в-сети>:80"]` (или без `:80`, если фронт слушает порт по
+  умолчанию) — иначе браузер зарежет запросы к API по CORS.
+- `BACKEND_PORT` / `FRONTEND_PORT` — опционально, порты на хосте (по умолчанию `8000` и `80`);
+  задать, если 80 уже занят на этой машине чем-то другим.
+- `BACKEND_DOMAIN`/`FRONTEND_DOMAIN` в этом сценарии не используются (это только для
+  `docker-compose.yml`/Traefik) — можно оставить как есть, не мешает.
+
 ## Переменные окружения
 
 `.env` (корень репозитория, используется docker-compose и фронтендом):
