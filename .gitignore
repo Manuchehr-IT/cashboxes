@@ -43,3 +43,4 @@ storage/
 
 !backend/src/**/logs/
 !backend/src/**/storage/
+!frontend/**/logs/
