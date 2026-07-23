@@ -1,4 +1,4 @@
-import { Users, Building2, Landmark, type LucideIcon } from "lucide-react"
+import { Users, Building2, Landmark, ScrollText, type LucideIcon } from "lucide-react"
 
 export type SidebarNavigationItem = {
   title: string
@@ -19,6 +19,7 @@ export const navigationGroups: SidebarNavigationGroup[] = [
     items: [
       { title: "Пользователи", url: "/users",   icon: Users      },
       { title: "Объекты",      url: "/objects",  icon: Building2  },
+      { title: "Логи",         url: "/logs",     icon: ScrollText },
     ],
   },
   {

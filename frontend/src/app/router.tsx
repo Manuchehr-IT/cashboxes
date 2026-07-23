@@ -4,6 +4,7 @@ import { SigninPage } from "@/pages/auth"
 import { UsersPage } from "@/pages/users"
 import { UserDetailPage } from "@/pages/user-detail"
 import { ObjectsPage } from "@/pages/objects"
+import { LogsPage } from "@/pages/logs"
 import { CashboxesPage } from "@/pages/reports/cashboxes"
 import { CashboxDetailPage } from "@/pages/reports/cashbox-detail"
 
@@ -30,6 +31,7 @@ export const router = createBrowserRouter([
           { path: "/users",              element: <UsersPage />    },
           { path: "/users/:userId",      element: <UserDetailPage />  },
           { path: "/objects",            element: <ObjectsPage />  },
+          { path: "/logs",               element: <LogsPage />     },
           { path: "/reports/cashboxes",  element: <CashboxesPage /> },
           { path: "/reports/cashboxes/:objectId/:cashId", element: <CashboxDetailPage /> },
         ],

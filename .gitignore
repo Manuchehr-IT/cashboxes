@@ -41,4 +41,5 @@ Thumbs.db
 logs/
 storage/
 
+!backend/src/**/logs/
 !backend/src/**/storage/

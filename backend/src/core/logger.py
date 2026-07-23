@@ -7,6 +7,8 @@ class _HealthCheckFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         return "/health" not in record.getMessage()
 
+LOG_FILE_PATH = "logs/app.log"
+
 LOGGING_CONFIG: dict[str, Any] = {
 	"version": 1,
 	"disable_existing_loggers": False,
@@ -31,7 +33,7 @@ LOGGING_CONFIG: dict[str, Any] = {
 			"class": "logging.handlers.RotatingFileHandler",
 			"level": "DEBUG",
 			"formatter": "detailed",
-			"filename": "logs/app.log",
+			"filename": LOG_FILE_PATH,
 			"maxBytes": 10 * 1024 * 1024,  # 10 MB
 			"backupCount": 5,
 			"encoding": "utf8",

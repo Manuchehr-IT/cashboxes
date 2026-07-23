@@ -1,3 +1,4 @@
+import logging
 from datetime import date
 from typing import Any, TypeVar
 from urllib.parse import urlsplit, urlunsplit
@@ -9,6 +10,8 @@ from src.core.errors import ExternalServiceRequestError
 from src.infrastructure.external.http import HTTPClient, HTTPMethod
 
 from .schemas import OneCCashbox, OneCCashDetail, OneCCashDetailsResponse, OneCResponse, OneCStatusResponse
+
+logger = logging.getLogger(__name__)
 
 ResponseT = TypeVar("ResponseT", bound=OneCStatusResponse)
 
@@ -45,14 +48,25 @@ class OneCClient:
 			response = await self.http_client.request(HTTPMethod.GET, url, params=params, auth=self.auth)
 		except httpx.HTTPError as e:
 			status_code = getattr(getattr(e, "response", None), "status_code", 0)
+			logger.error("1C request failed: %s params=%s: %s", url, params, e)
 			raise ExternalServiceRequestError(service="1C", url=url, status_code=status_code) from e
+
+		logger.debug("1C response: %s params=%s -> [%s] %s", url, params, response.status_code, response.text)
 
 		try:
 			parsed = response_model.model_validate(response.json())
 		except (ValueError, ValidationError) as e:
+			logger.error(
+				"1C response is not valid JSON/schema: %s -> [%s] %s (%s)",
+				url, response.status_code, response.text, e,
+			)
 			raise ExternalServiceRequestError(service="1C", url=url, status_code=response.status_code) from e
 
 		if parsed.status != "success":
+			logger.error(
+				"1C reported non-success status: %s -> [%s] %s",
+				url, response.status_code, response.text,
+			)
 			raise ExternalServiceRequestError(service="1C", url=url, status_code=response.status_code)
 
 		return parsed
