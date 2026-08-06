@@ -21,6 +21,7 @@ class UserMapper:
 			username=dto.username,
 			is_active=dto.is_active,
 			is_admin=dto.is_admin,
+			cash_access_scope=dto.cash_access_scope,
 			created_at=dto.created_at,
 			updated_at=dto.updated_at,
 		)
@@ -39,6 +40,7 @@ class CreateUserMapper:
 		return CreateUserCommand(
 			username=request.username,
 			is_active=request.is_active,
+			cash_access_scope=request.cash_access_scope,
 		)
 
 class GetUserMapper:

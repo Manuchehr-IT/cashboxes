@@ -68,6 +68,7 @@ class UserRepository:
 		model.username = user.username
 		model.password_hash = user.password_hash
 		model.is_active = user.is_active
+		model.cash_access_scope = user.cash_access_scope.value
 		model.updated_at = user.updated_at
 
 		try:

@@ -24,6 +24,7 @@ class CreateUser:
 				password_hash=password_hash,
 				is_active=command.is_active,
 				is_admin=False,
+				cash_access_scope=command.cash_access_scope,
 			)
 			await self.uow.user.add(user)
 			return UserWithPasswordMapper.to_dto(user, password)

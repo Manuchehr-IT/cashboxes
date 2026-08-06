@@ -14,6 +14,7 @@ async def me_endpoint(current_user: User = Depends(require_user)):
 		username=current_user.username,
 		is_active=current_user.is_active,
 		is_admin=current_user.is_admin,
+		cash_access_scope=current_user.cash_access_scope,
 		created_at=current_user.created_at,
 		updated_at=current_user.updated_at,
 	)

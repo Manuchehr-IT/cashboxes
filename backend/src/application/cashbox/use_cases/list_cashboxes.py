@@ -3,6 +3,7 @@ import asyncio
 from src.application.cashbox.dtos import CashboxDTO, FailedObjectDTO, ListCashboxesDTO, ObjectCashboxesDTO
 from src.application.cashbox.queries import ListCashboxesQuery
 from src.domain.object.entities import Object
+from src.domain.user.enums import CashAccessScope
 from src.infrastructure.database import UnitOfWork
 from src.infrastructure.external.onec import OneCCashbox, OneCClient
 
@@ -28,12 +29,13 @@ class ListCashboxes:
 			return_exceptions=True,
 		)
 
-		return self._build_dto(objects, results)
+		return self._build_dto(objects, results, user.effective_cash_access_scope)
 
 	def _build_dto(
 		self,
 		objects: list[Object],
 		results: list[list[OneCCashbox] | BaseException],
+		scope: CashAccessScope,
 	) -> ListCashboxesDTO:
 		items: list[ObjectCashboxesDTO] = []
 		failed_objects: list[FailedObjectDTO] = []
@@ -48,10 +50,22 @@ class ListCashboxes:
 					object_id=obj.id,
 					object_title=obj.title,
 					cashboxes=[
-						CashboxDTO(id=c.id, name=c.name, currency=c.currency, ost1=c.ost1, sump=c.sump, sumr=c.sumr, ost2=c.ost2)
+						CashboxDTO(
+							id=c.id, name=c.name, currency=c.currency, main=c.main, type=c.type,
+							ost1=c.ost1, sump=c.sump, sumr=c.sumr, ost2=c.ost2,
+						)
 						for c in result
+						if self._is_visible(c, scope)
 					],
 				)
 			)
 
 		return ListCashboxesDTO(items=items, failed_objects=failed_objects)
+
+	@staticmethod
+	def _is_visible(cashbox: OneCCashbox, scope: CashAccessScope) -> bool:
+		if scope == CashAccessScope.MAIN:
+			return cashbox.main
+		if scope == CashAccessScope.NON_MAIN:
+			return not cashbox.main
+		return True

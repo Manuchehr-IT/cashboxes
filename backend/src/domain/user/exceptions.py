@@ -57,3 +57,9 @@ class AdminPasswordChangeForbiddenError(ForbiddenError):
 
 	def __init__(self) -> None:
 		super().__init__("Cannot change the password of another admin user")
+
+class CashAccessForbiddenError(ForbiddenError):
+	code = "cash_access_forbidden"
+
+	def __init__(self) -> None:
+		super().__init__("Cannot access this cashbox with the current cash access scope")

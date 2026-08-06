@@ -2,6 +2,8 @@ export type Cashbox = {
   id: string
   name: string
   currency: string
+  main: boolean
+  type: string
   ost1: number
   sump: number
   sumr: number

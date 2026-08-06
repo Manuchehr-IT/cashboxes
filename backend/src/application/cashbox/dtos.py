@@ -7,6 +7,8 @@ class CashboxDTO(BaseModel):
 	id: str
 	name: str
 	currency: str
+	main: bool
+	type: str
 	ost1: float
 	sump: float
 	sumr: float

@@ -56,6 +56,14 @@ function getCurrencies(items: ObjectCashboxes[]): string[] {
   return Array.from(set).sort()
 }
 
+function getTypes(items: ObjectCashboxes[]): string[] {
+  const set = new Set<string>()
+  for (const group of items) {
+    for (const c of group.cashboxes) set.add(c.type)
+  }
+  return Array.from(set).sort()
+}
+
 function sumTotals(items: ObjectCashboxes[], currency: string) {
   return items.reduce(
     (acc, group) => {
@@ -79,6 +87,7 @@ export function CashboxesPage() {
   const dateFrom = searchParams.get("date_from") ?? ""
   const dateTo = searchParams.get("date_to") ?? ""
   const selectedCurrencies = searchParams.getAll("currency")
+  const selectedTypes = searchParams.getAll("type")
 
   const setDateFrom = (value: string) => {
     setSearchParams((prev) => {
@@ -116,6 +125,15 @@ export function CashboxesPage() {
     }, { replace: true })
   }
 
+  const setTypes = (values: string[]) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete("type")
+      for (const value of values) next.append("type", value)
+      return next
+    }, { replace: true })
+  }
+
   const hasAnyDate = !!(dateFrom || dateTo)
   const validationMessage = getDateValidationMessage(dateFrom, dateTo)
   const bothDatesValid = !!dateFrom && !!dateTo && validationMessage === null
@@ -143,12 +161,22 @@ export function CashboxesPage() {
     ? allCurrencies.filter((c) => selectedCurrencies.includes(c))
     : allCurrencies
 
-  const filteredItems = selectedCurrencies.length === 0
+  const allTypes = useMemo(() => getTypes(items), [items])
+  const typeOptions: FacetedFilterOption[] = useMemo(
+    () => allTypes.map((type) => ({ label: type, value: type })),
+    [allTypes]
+  )
+
+  // Валюта и тип — независимые фильтры, применяются оба сразу (AND); пустой выбор = не применён.
+  const filteredItems = (selectedCurrencies.length === 0 && selectedTypes.length === 0)
     ? items
     : items
       .map((group) => ({
         ...group,
-        cashboxes: group.cashboxes.filter((c) => selectedCurrencies.includes(c.currency)),
+        cashboxes: group.cashboxes.filter((c) =>
+          (selectedCurrencies.length === 0 || selectedCurrencies.includes(c.currency)) &&
+          (selectedTypes.length === 0 || selectedTypes.includes(c.type))
+        ),
       }))
       .filter((group) => group.cashboxes.length > 0)
 
@@ -234,6 +262,14 @@ export function CashboxesPage() {
                 onChange={setCurrencies}
               />
             )}
+            {typeOptions.length > 1 && (
+              <DataTableFacetedFilter
+                title="Тип"
+                options={typeOptions}
+                selected={selectedTypes}
+                onChange={setTypes}
+              />
+            )}
             {hasAnyDate && (
               <Button variant="default" onClick={resetDates}>
                 Сбросить
@@ -278,7 +314,7 @@ export function CashboxesPage() {
               </TableHeader>
               <TableBody>
                 {visibleCurrencies.map((currency) => {
-                  const totals = sumTotals(items, currency)
+                  const totals = sumTotals(filteredItems, currency)
                   return (
                     <TableRow key={currency} className="hover:bg-transparent">
                       <TableCell className="py-1.5 font-medium">{currency}</TableCell>
@@ -309,7 +345,7 @@ export function CashboxesPage() {
         </div>
       ) : filteredItems.length === 0 ? (
         <div className="flex items-center justify-center py-16 text-muted-foreground">
-          Нет касс с выбранной валютой
+          Нет касс по выбранным фильтрам
         </div>
       ) : (
         <div className="flex flex-col gap-4">

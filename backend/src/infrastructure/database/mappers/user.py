@@ -1,4 +1,5 @@
 from src.domain.user.entities import User
+from src.domain.user.enums import CashAccessScope
 from src.domain.user.value_objects.object import UserObject
 from src.infrastructure.database.models import UserModel, UserObjectModel
 
@@ -12,6 +13,7 @@ class UserMapper:
 			password_hash=model.password_hash,
 			is_active=model.is_active,
 			is_admin=model.is_admin,
+			cash_access_scope=CashAccessScope(model.cash_access_scope),
 			created_at=model.created_at,
 			updated_at=model.updated_at,
 			_objects=[
@@ -31,6 +33,7 @@ class UserMapper:
 			password_hash=user.password_hash,
 			is_active=user.is_active,
 			is_admin=user.is_admin,
+			cash_access_scope=user.cash_access_scope.value,
 			created_at=user.created_at,
 			updated_at=user.updated_at,
 			objects=[

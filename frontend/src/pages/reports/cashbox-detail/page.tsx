@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { getErrorMessage } from "@/lib/api-error"
 import { cashDetailsApi } from "@/pages/reports/cashbox-detail/api/cash-details"
 
 function formatAmount(value: number): string {
@@ -69,7 +70,7 @@ export function CashboxDetailPage() {
         </div>
       ) : query.isError ? (
         <div className="flex items-center justify-center py-16 text-muted-foreground">
-          Не удалось загрузить детализацию, попробуйте позже
+          {getErrorMessage(query.error, { fallback: "Не удалось загрузить детализацию, попробуйте позже" })}
         </div>
       ) : items.length === 0 ? (
         <div className="flex items-center justify-center py-16 text-muted-foreground">

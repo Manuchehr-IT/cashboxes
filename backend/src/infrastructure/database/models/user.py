@@ -23,6 +23,7 @@ class UserModel(Base, IdMixin, TimestampMixin):
 
 	is_active: Mapped[bool] = mapped_column(Boolean, server_default="true", nullable=False)
 	is_admin: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+	cash_access_scope: Mapped[str] = mapped_column(String, server_default="all", nullable=False)
 
 	# Связи
 	objects: Mapped[list[UserObjectModel]] = relationship(

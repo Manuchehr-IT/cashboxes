@@ -10,6 +10,7 @@ class UserMapper:
 			username=user.username,
 			is_active=user.is_active,
 			is_admin=user.is_admin,
+			cash_access_scope=user.cash_access_scope,
 			created_at=user.created_at,
 			updated_at=user.updated_at,
 		)

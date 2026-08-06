@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 
 from src.core.sentinels import UNSET, UnsetType
 
+from .enums import CashAccessScope
 from .value_objects.object import UserObject
 
 
@@ -15,6 +16,7 @@ class User:
 	password_hash: str
 	is_active: bool
 	is_admin: bool
+	cash_access_scope: CashAccessScope
 	created_at: datetime
 	updated_at: datetime
 
@@ -27,6 +29,7 @@ class User:
 		password_hash: str,
 		is_active: bool,
 		is_admin: bool,
+		cash_access_scope: CashAccessScope = CashAccessScope.ALL,
 	) -> Self:
 		now = datetime.now(UTC)
 		return cls(
@@ -35,6 +38,7 @@ class User:
 			password_hash=password_hash,
 			is_active=is_active,
 			is_admin=is_admin,
+			cash_access_scope=cash_access_scope,
 			created_at=now,
 			updated_at=now,
 		)
@@ -45,6 +49,7 @@ class User:
 		username: str | UnsetType = UNSET,
 		is_active: bool | UnsetType = UNSET,
 		is_admin: bool | UnsetType = UNSET,
+		cash_access_scope: CashAccessScope | UnsetType = UNSET,
 	) -> None:
 		if username is not UNSET:
 			self.username = username
@@ -52,7 +57,15 @@ class User:
 			self.is_active = is_active
 		if is_admin is not UNSET:
 			self.is_admin = is_admin
+		if cash_access_scope is not UNSET:
+			self.cash_access_scope = cash_access_scope
 		self._touch()
+
+	@property
+	def effective_cash_access_scope(self) -> CashAccessScope:
+		"""Админы всегда видят все кассы, независимо от собственного cash_access_scope —
+		как и с доступом к объектам (is_admin обходит UserObject)."""
+		return CashAccessScope.ALL if self.is_admin else self.cash_access_scope
 
 	def set_password(self, password_hash: str) -> None:
 		self.password_hash = password_hash

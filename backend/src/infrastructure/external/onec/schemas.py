@@ -11,6 +11,8 @@ class OneCCashbox(BaseModel):
 	id: str
 	name: str
 	currency: str
+	main: bool
+	type: str
 	ost1: float
 	sump: float
 	sumr: float
@@ -31,6 +33,7 @@ class OneCCashDetail(BaseModel):
 	sumr: float
 	doc: str
 	comment: str = ""
+	main: bool
 
 	@property
 	def subkonto(self) -> list[str]:

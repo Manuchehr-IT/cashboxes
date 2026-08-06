@@ -14,6 +14,7 @@ class UpdateUser:
 			user.update(
 				username=command.username,
 				is_active=command.is_active,
+				cash_access_scope=command.cash_access_scope,
 			)
 			await self.uow.user.update(user)
 			return UserMapper.to_dto(user)

@@ -22,12 +22,14 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { getErrorMessage } from "@/lib/api-error"
+import { CASH_ACCESS_SCOPE_OPTIONS } from "@/pages/users/cash-access-scope"
 import { useUpdate } from "@/pages/users/hooks/use-update"
-import type { User } from "@/pages/users/types"
+import type { CashAccessScope, User } from "@/pages/users/types"
 
 const schema = z.object({
   username: z.string().min(1, "Введите имя пользователя"),
   is_active: z.boolean(),
+  cash_access_scope: z.enum(["main", "non_main", "all"]),
 })
 
 type Values = z.infer<typeof schema>
@@ -46,12 +48,12 @@ export function EditUserSheet({ open, onOpenChange, user }: EditUserSheetProps) 
 
   const form = useForm<Values>({
     resolver: zodResolver(schema),
-    defaultValues: { username: "", is_active: true },
+    defaultValues: { username: "", is_active: true, cash_access_scope: "all" },
   })
 
   useEffect(() => {
     if (open && user) {
-      form.reset({ username: user.username, is_active: user.is_active })
+      form.reset({ username: user.username, is_active: user.is_active, cash_access_scope: user.cash_access_scope })
       setError(null)
     }
   }, [open, user, form])
@@ -100,6 +102,23 @@ export function EditUserSheet({ open, onOpenChange, user }: EditUserSheetProps) 
                 <SelectContent position="popper" align="start">
                   <SelectItem value="true">Активный</SelectItem>
                   <SelectItem value="false">Неактивный</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Доступные кассы</Label>
+              <Select
+                value={form.watch("cash_access_scope")}
+                onValueChange={(v) => form.setValue("cash_access_scope", v as CashAccessScope, { shouldDirty: true })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent position="popper" align="start">
+                  {CASH_ACCESS_SCOPE_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

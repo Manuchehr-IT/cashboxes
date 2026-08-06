@@ -58,6 +58,8 @@ class ListCashboxesMapper:
 							id=c.id,
 							name=c.name,
 							currency=c.currency,
+							main=c.main,
+							type=c.type,
 							ost1=c.ost1,
 							sump=c.sump,
 							sumr=c.sumr,

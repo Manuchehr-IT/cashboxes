@@ -1,6 +1,9 @@
 from datetime import datetime
-from pydantic import BaseModel
 from uuid import UUID
+
+from pydantic import BaseModel
+
+from src.domain.user.enums import CashAccessScope
 
 
 class UserDTO(BaseModel):
@@ -8,6 +11,7 @@ class UserDTO(BaseModel):
 	username: str
 	is_active: bool
 	is_admin: bool
+	cash_access_scope: CashAccessScope
 	created_at: datetime
 	updated_at: datetime
 

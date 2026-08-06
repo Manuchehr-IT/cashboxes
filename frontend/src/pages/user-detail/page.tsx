@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { usersApi } from "@/pages/users/api/users"
+import { CASH_ACCESS_SCOPE_LABELS } from "@/pages/users/cash-access-scope"
 import { EditUserSheet } from "@/pages/users/edit-sheet"
 import { SetPasswordModal } from "@/pages/users/set-password-modal"
 import { UserObjectsPage } from "@/pages/user-objects"
@@ -138,6 +139,10 @@ export function UserDetailPage() {
           <div className="flex justify-between">
             <span className="text-muted-foreground">Статус</span>
             <span className="font-medium">{user.is_active ? "Активный" : "Неактивный"}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Доступные кассы</span>
+            <span className="font-medium">{CASH_ACCESS_SCOPE_LABELS[user.cash_access_scope]}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Создан</span>
