@@ -3,6 +3,7 @@ import { Circle, CircleOff, ShieldCheck } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { DataTableSortableHeader } from "@/components/data-table/data-table-sortable-header"
+import { CASH_ACCESS_SCOPE_LABELS } from "@/pages/users/cash-access-scope"
 import { UserRowActions } from "@/pages/users/row-actions"
 import type { User } from "@/pages/users/types"
 
@@ -71,6 +72,18 @@ export const columns: ColumnDef<User>[] = [
           <CircleOff className="size-3" /> Неактивный
         </Badge>
       ),
+  },
+  {
+    accessorKey: "cash_access_scope",
+    size: 130,
+    meta: { label: "Доступные кассы" },
+    enableSorting: false,
+    header: "Доступные кассы",
+    cell: ({ row }) => (
+      <span className="text-sm text-muted-foreground">
+        {CASH_ACCESS_SCOPE_LABELS[row.original.cash_access_scope]}
+      </span>
+    ),
   },
   {
     accessorKey: "created_at",

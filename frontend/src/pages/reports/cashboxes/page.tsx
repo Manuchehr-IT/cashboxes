@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react"
+import { Fragment, useEffect, useMemo, useRef } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
@@ -64,11 +64,23 @@ function getTypes(items: ObjectCashboxes[]): string[] {
   return Array.from(set).sort()
 }
 
-function sumTotals(items: ObjectCashboxes[], currency: string) {
+/** Типы, реально встречающиеся у касс конкретной валюты (для подытогов под каждой валютой). */
+function getTypesForCurrency(items: ObjectCashboxes[], currency: string): string[] {
+  const set = new Set<string>()
+  for (const group of items) {
+    for (const c of group.cashboxes) {
+      if (c.currency === currency) set.add(c.type)
+    }
+  }
+  return Array.from(set).sort()
+}
+
+function sumTotals(items: ObjectCashboxes[], currency: string, type?: string) {
   return items.reduce(
     (acc, group) => {
       for (const c of group.cashboxes) {
         if (c.currency !== currency) continue
+        if (type !== undefined && c.type !== type) continue
         acc.ost1 += c.ost1
         acc.sump += c.sump
         acc.sumr += c.sumr
@@ -315,14 +327,29 @@ export function CashboxesPage() {
               <TableBody>
                 {visibleCurrencies.map((currency) => {
                   const totals = sumTotals(filteredItems, currency)
+                  const types = getTypesForCurrency(filteredItems, currency)
                   return (
-                    <TableRow key={currency} className="hover:bg-transparent">
-                      <TableCell className="py-1.5 font-medium">{currency}</TableCell>
-                      <TableCell className="py-1.5 text-right tabular-nums">{formatAmount(totals.ost1)}</TableCell>
-                      <TableCell className="py-1.5 text-right tabular-nums text-green-600">{formatAmount(totals.sump)}</TableCell>
-                      <TableCell className="py-1.5 text-right tabular-nums text-red-600">{formatAmount(totals.sumr)}</TableCell>
-                      <TableCell className="py-1.5 text-right tabular-nums font-medium">{formatAmount(totals.ost2)}</TableCell>
-                    </TableRow>
+                    <Fragment key={currency}>
+                      <TableRow className="hover:bg-transparent">
+                        <TableCell className="py-1.5 font-medium">{currency}</TableCell>
+                        <TableCell className="py-1.5 text-right tabular-nums">{formatAmount(totals.ost1)}</TableCell>
+                        <TableCell className="py-1.5 text-right tabular-nums text-green-600">{formatAmount(totals.sump)}</TableCell>
+                        <TableCell className="py-1.5 text-right tabular-nums text-red-600">{formatAmount(totals.sumr)}</TableCell>
+                        <TableCell className="py-1.5 text-right tabular-nums font-medium">{formatAmount(totals.ost2)}</TableCell>
+                      </TableRow>
+                      {types.map((type) => {
+                        const typeTotals = sumTotals(filteredItems, currency, type)
+                        return (
+                          <TableRow key={`${currency}-${type}`} className="hover:bg-transparent">
+                            <TableCell className="py-1 pl-6 text-xs text-muted-foreground">{type}</TableCell>
+                            <TableCell className="py-1 text-right tabular-nums text-xs text-muted-foreground">{formatAmount(typeTotals.ost1)}</TableCell>
+                            <TableCell className="py-1 text-right tabular-nums text-xs text-green-600/80">{formatAmount(typeTotals.sump)}</TableCell>
+                            <TableCell className="py-1 text-right tabular-nums text-xs text-red-600/80">{formatAmount(typeTotals.sumr)}</TableCell>
+                            <TableCell className="py-1 text-right tabular-nums text-xs text-muted-foreground">{formatAmount(typeTotals.ost2)}</TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </Fragment>
                   )
                 })}
               </TableBody>
@@ -361,6 +388,7 @@ export function CashboxesPage() {
                       <TableRow>
                         <TableHead>Касса</TableHead>
                         <TableHead>Валюта</TableHead>
+                        <TableHead>Тип</TableHead>
                         <TableHead className="text-right w-[140px] whitespace-normal">Начальный остаток</TableHead>
                         <TableHead className="text-right w-[140px] whitespace-normal">Приход</TableHead>
                         <TableHead className="text-right w-[140px] whitespace-normal">Расход</TableHead>
@@ -376,6 +404,7 @@ export function CashboxesPage() {
                         >
                           <TableCell className="font-medium">{c.name}</TableCell>
                           <TableCell className="text-muted-foreground">{c.currency}</TableCell>
+                          <TableCell className="text-muted-foreground">{c.type}</TableCell>
                           <TableCell className="text-right tabular-nums">{formatAmount(c.ost1)}</TableCell>
                           <TableCell className="text-right tabular-nums text-green-600">{formatAmount(c.sump)}</TableCell>
                           <TableCell className="text-right tabular-nums text-red-600">{formatAmount(c.sumr)}</TableCell>
