@@ -8,6 +8,8 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
   admin_deletion_forbidden: "Нельзя удалить администратора",
   admin_password_change_forbidden: "Нельзя изменить пароль другого администратора",
   cash_access_forbidden: "Нет доступа к этой кассе",
+  cashboxes_access_forbidden: "Нет доступа к разделу «Кассы»",
+  counterparties_access_forbidden: "Нет доступа к разделу «Контрагенты»",
 }
 
 interface GetErrorMessageOptions {

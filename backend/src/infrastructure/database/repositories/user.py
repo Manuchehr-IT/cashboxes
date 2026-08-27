@@ -67,8 +67,9 @@ class UserRepository:
 		model = await self._get_model(user.id)
 		model.username = user.username
 		model.password_hash = user.password_hash
-		model.is_active = user.is_active
 		model.cash_access_scope = user.cash_access_scope.value
+		model.can_view_cashboxes = user.can_view_cashboxes
+		model.can_view_counterparties = user.can_view_counterparties
 		model.updated_at = user.updated_at
 
 		try:
@@ -84,24 +85,21 @@ class UserRepository:
 		await self.session.delete(model)
 		await self.session.flush()
 
-	def _apply_filters(self, stmt: SelectT, q: str | None, is_active: bool | None) -> SelectT:
+	def _apply_filters(self, stmt: SelectT, q: str | None) -> SelectT:
 		if q:
 			pattern = like_contains(q)
 			stmt = stmt.where(
 				UserModel.username.ilike(pattern, escape=LIKE_ESCAPE),
 			)
-		if is_active is not None:
-			stmt = stmt.where(UserModel.is_active == is_active)
 		return stmt
 
 	_SORT_COLUMNS: SortColumns = {
 		"username": UserModel.username,
-		"is_active": UserModel.is_active,
 		"created_at": UserModel.created_at,
 	}
 
-	async def list(self, limit: int, offset: int, q: str | None, sort: list[SortField], is_active: bool | None) -> list[User]:
-		stmt = self._apply_filters(select(UserModel), q, is_active)
+	async def list(self, limit: int, offset: int, q: str | None, sort: list[SortField]) -> list[User]:
+		stmt = self._apply_filters(select(UserModel), q)
 		stmt = apply_sort(stmt, self._SORT_COLUMNS, sort, UserModel.created_at.desc())
 		stmt = stmt.limit(limit).offset(offset)
 		result = await self.session.execute(stmt)
@@ -115,7 +113,7 @@ class UserRepository:
 		)
 		return [UserMapper.to_domain(m) for m in result.scalars().all()]
 
-	async def count(self, q: str | None, is_active: bool | None) -> int:
-		stmt = self._apply_filters(select(func.count()).select_from(UserModel), q, is_active)
+	async def count(self, q: str | None) -> int:
+		stmt = self._apply_filters(select(func.count()).select_from(UserModel), q)
 		result = await self.session.execute(stmt)
 		return result.scalar_one()

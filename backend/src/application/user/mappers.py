@@ -8,9 +8,10 @@ class UserMapper:
 		return UserDTO(
 			id=user.id,
 			username=user.username,
-			is_active=user.is_active,
 			is_admin=user.is_admin,
 			cash_access_scope=user.cash_access_scope,
+			can_view_cashboxes=user.can_view_cashboxes,
+			can_view_counterparties=user.can_view_counterparties,
 			created_at=user.created_at,
 			updated_at=user.updated_at,
 		)

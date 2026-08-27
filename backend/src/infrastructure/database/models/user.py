@@ -21,9 +21,11 @@ class UserModel(Base, IdMixin, TimestampMixin):
 	username: Mapped[str] = mapped_column(String, nullable=False)
 	password_hash: Mapped[str] = mapped_column(String, nullable=False)
 
-	is_active: Mapped[bool] = mapped_column(Boolean, server_default="true", nullable=False)
 	is_admin: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
 	cash_access_scope: Mapped[str] = mapped_column(String, server_default="all", nullable=False)
+
+	can_view_cashboxes: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+	can_view_counterparties: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
 
 	# Связи
 	objects: Mapped[list[UserObjectModel]] = relationship(

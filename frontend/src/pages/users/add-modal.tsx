@@ -28,13 +28,12 @@ import type { CashAccessScope } from "@/pages/users/types"
 
 const schema = z.object({
   username: z.string().min(1, "Введите имя пользователя"),
-  is_active: z.boolean(),
   cash_access_scope: z.enum(["main", "non_main", "all"]),
 })
 
 type Values = z.infer<typeof schema>
 
-const DEFAULT_VALUES: Values = { username: "", is_active: true, cash_access_scope: "all" }
+const DEFAULT_VALUES: Values = { username: "", cash_access_scope: "all" }
 const CONFLICT_MESSAGE = "Пользователь с таким именем уже существует"
 
 interface AddUserModalProps {
@@ -127,22 +126,6 @@ export function AddUserModal({ open, onOpenChange }: AddUserModalProps) {
                   {errors.username && (
                     <p className="text-xs text-destructive">{errors.username.message}</p>
                   )}
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label>Статус</Label>
-                  <Select
-                    value={String(form.watch("is_active"))}
-                    onValueChange={(v) => form.setValue("is_active", v === "true", { shouldDirty: true })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent position="popper" align="start">
-                      <SelectItem value="true">Активный</SelectItem>
-                      <SelectItem value="false">Неактивный</SelectItem>
-                    </SelectContent>
-                  </Select>
                 </div>
 
                 <div className="space-y-1.5">

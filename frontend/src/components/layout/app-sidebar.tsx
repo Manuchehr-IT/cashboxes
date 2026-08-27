@@ -32,9 +32,15 @@ export function AppSidebar() {
   const isAdmin = me.data?.is_admin ?? false;
   const username = me.data?.username ?? "—";
 
-  const visibleGroups = navigationGroups.filter(
-    (group) => !group.adminOnly || isAdmin
-  );
+  const visibleGroups = navigationGroups
+    .filter((group) => !group.adminOnly || isAdmin)
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(
+        (item) => !item.permissionKey || isAdmin || !!me.data?.[item.permissionKey]
+      ),
+    }))
+    .filter((group) => group.items.length > 0);
 
   return (
     <Sidebar variant="inset" collapsible="icon">

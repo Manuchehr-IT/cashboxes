@@ -2,52 +2,33 @@ import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { Circle, CircleOff, Plus, RefreshCw, Trash2 } from "lucide-react"
+import { Plus, Trash2 } from "lucide-react"
 import { getErrorMessage } from "@/lib/api-error"
 import { runBulkAction } from "@/lib/bulk-action"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { ConfirmDialog } from "@/components/confirm-dialog"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { DataTable } from "@/components/data-table/data-table"
-import { DataTableFacetedFilter, type FacetedFilterOption } from "@/components/data-table/data-table-faceted-filter"
 import { DataTableSelectionBar } from "@/components/data-table/data-table-selection-bar"
-import { getFilterValues, serializeSort } from "@/components/data-table/table-utils"
+import { serializeSort } from "@/components/data-table/table-utils"
 import { useTableParams } from "@/hooks/use-table-params"
 import { columns } from "@/pages/users/columns"
 import { usersApi } from "@/pages/users/api/users"
-import { useUpdate } from "@/pages/users/hooks/use-update"
 import { useDelete } from "@/pages/users/hooks/use-delete"
 import { AddUserModal } from "@/pages/users/add-modal"
 import { EditUserSheet } from "@/pages/users/edit-sheet"
 import { SetPasswordModal } from "@/pages/users/set-password-modal"
 import type { User } from "@/pages/users/types"
 
-const IS_ACTIVE_OPTIONS: FacetedFilterOption[] = [
-  { label: "Активный",   value: "true",  icon: Circle    },
-  { label: "Неактивный", value: "false", icon: CircleOff },
-]
-
 export function UsersPage() {
   const navigate = useNavigate()
-  const { page, pageSize, sorting, columnFilters, search, setParams } = useTableParams()
-
-  const selectedIsActive = getFilterValues(columnFilters, "is_active")
-  const is_active = selectedIsActive.length === 1 ? selectedIsActive[0] === "true" : undefined
+  const { page, pageSize, sorting, search, setParams } = useTableParams()
 
   const params = {
     page,
     pageSize,
     sort: serializeSort(sorting) || undefined,
     q: search || undefined,
-    is_active,
   }
 
   const query = useQuery({
@@ -60,8 +41,7 @@ export function UsersPage() {
   const totalCount = query.data?.count ?? 0
 
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({})
-  const filterKey = JSON.stringify(columnFilters)
-  useEffect(() => { setRowSelection({}) }, [search, filterKey])
+  useEffect(() => { setRowSelection({}) }, [search])
 
   const selectedIds = Object.keys(rowSelection).filter((id) => rowSelection[id])
   const selectedCount = selectedIds.length
@@ -86,28 +66,11 @@ export function UsersPage() {
   const [passwordTarget, setPasswordTarget] = useState<User | null>(null)
   const [passwordOpen, setPasswordOpen] = useState(false)
 
-  const [isUpdatingStatuses, setIsUpdatingStatuses] = useState(false)
   const [isDeletingSelected, setIsDeletingSelected] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null)
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
 
-  const updateMutation = useUpdate()
   const deleteMutation = useDelete()
-
-  const handleUpdateStatuses = async (isActiveValue: boolean) => {
-    setIsUpdatingStatuses(true)
-    try {
-      const { successCount, failCount } = await runBulkAction(selectedIds, (id) =>
-        updateMutation.mutateAsync({ id, payload: { is_active: isActiveValue } })
-      )
-      if (failCount === 0) toast.success(`Статус обновлён: ${successCount}`)
-      else if (successCount > 0) toast.warning(`Обновлено ${successCount} из ${selectedIds.length}, ${failCount} с ошибкой`)
-      else toast.error("Не удалось обновить статус")
-      clearSelection()
-    } finally {
-      setIsUpdatingStatuses(false)
-    }
-  }
 
   const confirmDeleteSelected = async () => {
     setBulkDeleteOpen(false)
@@ -171,14 +134,6 @@ export function UsersPage() {
         columns={columns}
         filterPlaceholder="Поиск пользователей..."
         meta={{ onOpen: handleOpen, onEdit: handleEdit, onChangePassword: handleChangePassword, onDelete: setDeleteTarget }}
-        toolbar={
-          <DataTableFacetedFilter
-            title="Статус"
-            options={IS_ACTIVE_OPTIONS}
-            selected={selectedIsActive}
-            onChange={(values) => setParams({ filters: { is_active: values } })}
-          />
-        }
       />
 
       <DataTableSelectionBar
@@ -189,33 +144,6 @@ export function UsersPage() {
         onClear={clearSelection}
         actions={
           <>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="h-7 gap-1.5 text-xs"
-                  disabled={isUpdatingStatuses}
-                >
-                  {isUpdatingStatuses
-                    ? <Spinner size={12} />
-                    : <RefreshCw className="size-3" />
-                  }
-                  {isUpdatingStatuses ? "Обновление..." : "Статус"}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent side="top" align="start">
-                <DropdownMenuLabel className="text-xs text-muted-foreground">Изменить статус</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => handleUpdateStatuses(true)}>
-                  <Circle className="size-3.5 mr-2 text-green-500" /> Активный
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleUpdateStatuses(false)}>
-                  <CircleOff className="size-3.5 mr-2 text-red-500" /> Неактивный
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
             <Button
               variant="destructive"
               size="sm"

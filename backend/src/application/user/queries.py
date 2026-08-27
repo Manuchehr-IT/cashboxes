@@ -14,7 +14,6 @@ class ListUsersQuery(BaseModel):
 	offset: int
 	q: SearchQuery
 	sort: list[SortField]
-	is_active: bool | None
 
 class ListUserObjectsQuery(BaseModel):
 	user_id: UUID

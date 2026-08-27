@@ -28,7 +28,6 @@ import type { CashAccessScope, User } from "@/pages/users/types"
 
 const schema = z.object({
   username: z.string().min(1, "Введите имя пользователя"),
-  is_active: z.boolean(),
   cash_access_scope: z.enum(["main", "non_main", "all"]),
 })
 
@@ -48,12 +47,12 @@ export function EditUserSheet({ open, onOpenChange, user }: EditUserSheetProps) 
 
   const form = useForm<Values>({
     resolver: zodResolver(schema),
-    defaultValues: { username: "", is_active: true, cash_access_scope: "all" },
+    defaultValues: { username: "", cash_access_scope: "all" },
   })
 
   useEffect(() => {
     if (open && user) {
-      form.reset({ username: user.username, is_active: user.is_active, cash_access_scope: user.cash_access_scope })
+      form.reset({ username: user.username, cash_access_scope: user.cash_access_scope })
       setError(null)
     }
   }, [open, user, form])
@@ -88,22 +87,6 @@ export function EditUserSheet({ open, onOpenChange, user }: EditUserSheetProps) 
               {errors.username && (
                 <p className="text-xs text-destructive">{errors.username.message}</p>
               )}
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>Статус</Label>
-              <Select
-                value={String(form.watch("is_active"))}
-                onValueChange={(v) => form.setValue("is_active", v === "true", { shouldDirty: true })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent position="popper" align="start">
-                  <SelectItem value="true">Активный</SelectItem>
-                  <SelectItem value="false">Неактивный</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
 
             <div className="space-y-1.5">

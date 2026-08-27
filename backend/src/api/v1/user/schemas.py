@@ -8,13 +8,15 @@ from src.domain.user.enums import CashAccessScope
 
 class CreateUserRequest(BaseModel):
 	username: str
-	is_active: bool
 	cash_access_scope: CashAccessScope = CashAccessScope.ALL
+	can_view_cashboxes: bool = True
+	can_view_counterparties: bool = True
 
 class UpdateUserRequest(BaseModel):
 	username: str | None = None
-	is_active: bool | None = None
 	cash_access_scope: CashAccessScope | None = None
+	can_view_cashboxes: bool | None = None
+	can_view_counterparties: bool | None = None
 
 class SetUserPasswordRequest(BaseModel):
 	password: str = Field(min_length=8)
@@ -22,9 +24,10 @@ class SetUserPasswordRequest(BaseModel):
 class UserResponse(BaseModel):
 	id: UUID
 	username: str
-	is_active: bool
 	is_admin: bool
 	cash_access_scope: CashAccessScope
+	can_view_cashboxes: bool
+	can_view_counterparties: bool
 	created_at: datetime
 	updated_at: datetime
 

@@ -19,9 +19,10 @@ class UserMapper:
 		return schemas.UserResponse(
 			id=dto.id,
 			username=dto.username,
-			is_active=dto.is_active,
 			is_admin=dto.is_admin,
 			cash_access_scope=dto.cash_access_scope,
+			can_view_cashboxes=dto.can_view_cashboxes,
+			can_view_counterparties=dto.can_view_counterparties,
 			created_at=dto.created_at,
 			updated_at=dto.updated_at,
 		)
@@ -39,8 +40,9 @@ class CreateUserMapper:
 	def to_command(request: schemas.CreateUserRequest) -> CreateUserCommand:
 		return CreateUserCommand(
 			username=request.username,
-			is_active=request.is_active,
 			cash_access_scope=request.cash_access_scope,
+			can_view_cashboxes=request.can_view_cashboxes,
+			can_view_counterparties=request.can_view_counterparties,
 		)
 
 class GetUserMapper:
@@ -50,13 +52,12 @@ class GetUserMapper:
 
 class ListUsersMapper:
 	@staticmethod
-	def to_query(limit: int, offset: int, q: str | None, sort: str | None, is_active: bool | None) -> ListUsersQuery:
+	def to_query(limit: int, offset: int, q: str | None, sort: str | None) -> ListUsersQuery:
 		return ListUsersQuery(
 			limit=limit,
 			offset=offset,
 			q=q,
 			sort=parse_sort(sort),
-			is_active=is_active,
 		)
 
 	@staticmethod

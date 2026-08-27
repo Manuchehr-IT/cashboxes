@@ -1,5 +1,5 @@
 import { type ColumnDef } from "@tanstack/react-table"
-import { Circle, CircleOff, ShieldCheck } from "lucide-react"
+import { ShieldCheck } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { DataTableSortableHeader } from "@/components/data-table/data-table-sortable-header"
@@ -54,23 +54,6 @@ export const columns: ColumnDef<User>[] = [
         </Badge>
       ) : (
         <span className="text-sm text-muted-foreground">Пользователь</span>
-      ),
-  },
-  {
-    accessorKey: "is_active",
-    size: 130,
-    meta: { label: "Статус" },
-    enableSorting: true,
-    header: ({ column }) => <DataTableSortableHeader column={column} title="Статус" />,
-    cell: ({ row }) =>
-      row.original.is_active ? (
-        <Badge variant="outline" className="rounded-lg bg-green-200/30 text-green-600 border-green-300 dark:text-green-100 gap-1">
-          <Circle className="size-3" /> Активный
-        </Badge>
-      ) : (
-        <Badge variant="outline" className="rounded-lg bg-gray-200/30 text-gray-600 border-gray-300 dark:text-gray-100 gap-1">
-          <CircleOff className="size-3" /> Неактивный
-        </Badge>
       ),
   },
   {

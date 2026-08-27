@@ -63,3 +63,15 @@ class CashAccessForbiddenError(ForbiddenError):
 
 	def __init__(self) -> None:
 		super().__init__("Cannot access this cashbox with the current cash access scope")
+
+class CashboxesAccessForbiddenError(ForbiddenError):
+	code = "cashboxes_access_forbidden"
+
+	def __init__(self) -> None:
+		super().__init__("User does not have access to the cashboxes report")
+
+class CounterpartiesAccessForbiddenError(ForbiddenError):
+	code = "counterparties_access_forbidden"
+
+	def __init__(self) -> None:
+		super().__init__("User does not have access to the counterparties report")

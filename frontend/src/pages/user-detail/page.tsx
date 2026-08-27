@@ -1,22 +1,28 @@
 import { useState } from "react"
 import { useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
-import { ArrowLeft, Circle, CircleOff, ShieldCheck } from "lucide-react"
+import { toast } from "sonner"
+import { ArrowLeft, ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Spinner } from "@/components/ui/spinner"
+import { Switch } from "@/components/ui/switch"
+import { getErrorMessage } from "@/lib/api-error"
 import { cn } from "@/lib/utils"
 import { usersApi } from "@/pages/users/api/users"
 import { CASH_ACCESS_SCOPE_LABELS } from "@/pages/users/cash-access-scope"
 import { EditUserSheet } from "@/pages/users/edit-sheet"
+import { useUpdate } from "@/pages/users/hooks/use-update"
 import { SetPasswordModal } from "@/pages/users/set-password-modal"
 import { UserObjectsPage } from "@/pages/user-objects"
 
-type Tab = "profile" | "objects"
+type Tab = "profile" | "objects" | "settings"
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "profile", label: "Профиль" },
   { id: "objects", label: "Объекты" },
+  { id: "settings", label: "Настройки" },
 ]
 
 export function UserDetailPage() {
@@ -46,6 +52,20 @@ export function UserDetailPage() {
   const [editOpen, setEditOpen] = useState(false)
   const [passwordOpen, setPasswordOpen] = useState(false)
 
+  const updatePermission = useUpdate()
+  const handleTogglePermission = async (
+    key: "can_view_cashboxes" | "can_view_counterparties",
+    checked: boolean
+  ) => {
+    if (!user) return
+    try {
+      await updatePermission.mutateAsync({ id: user.id, payload: { [key]: checked } })
+      toast.success(checked ? "Доступ выдан" : "Доступ отключён")
+    } catch (err) {
+      toast.error(getErrorMessage(err))
+    }
+  }
+
   return (
     <div className="flex flex-1 flex-col gap-6">
       {/* Header */}
@@ -71,17 +91,6 @@ export function UserDetailPage() {
                   <Badge variant="outline" className="rounded-lg bg-violet-200/30 text-violet-600 border-violet-300 dark:text-violet-100 gap-1">
                     <ShieldCheck className="size-3" /> Админ
                   </Badge>
-                )}
-                {user && (
-                  user.is_active ? (
-                    <Badge variant="outline" className="rounded-lg bg-green-200/30 text-green-600 border-green-300 dark:text-green-100 gap-1">
-                      <Circle className="size-3" /> Активный
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="rounded-lg bg-gray-200/30 text-gray-600 border-gray-300 dark:text-gray-100 gap-1">
-                      <CircleOff className="size-3" /> Неактивный
-                    </Badge>
-                  )
                 )}
               </div>
             )}
@@ -137,10 +146,6 @@ export function UserDetailPage() {
             <span className="font-medium">{user.is_admin ? "Админ" : "Пользователь"}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Статус</span>
-            <span className="font-medium">{user.is_active ? "Активный" : "Неактивный"}</span>
-          </div>
-          <div className="flex justify-between">
             <span className="text-muted-foreground">Доступные кассы</span>
             <span className="font-medium">{CASH_ACCESS_SCOPE_LABELS[user.cash_access_scope]}</span>
           </div>
@@ -155,6 +160,43 @@ export function UserDetailPage() {
         </div>
       )}
       {activeTab === "objects" && userId && <UserObjectsPage userId={userId} />}
+      {activeTab === "settings" && user && (
+        <div className="rounded-md border p-4 space-y-4 max-w-md">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium">Кассы</p>
+              <p className="text-xs text-muted-foreground">Доступ к разделу отчётов «Кассы»</p>
+            </div>
+            <div className="flex items-center gap-2">
+              {updatePermission.isPending && <Spinner size={14} className="text-muted-foreground" />}
+              <Switch
+                checked={user.is_admin || user.can_view_cashboxes}
+                disabled={user.is_admin || updatePermission.isPending}
+                onCheckedChange={(checked) => handleTogglePermission("can_view_cashboxes", checked)}
+              />
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium">Контрагенты</p>
+              <p className="text-xs text-muted-foreground">Доступ к разделу отчётов «Контрагенты»</p>
+            </div>
+            <div className="flex items-center gap-2">
+              {updatePermission.isPending && <Spinner size={14} className="text-muted-foreground" />}
+              <Switch
+                checked={user.is_admin || user.can_view_counterparties}
+                disabled={user.is_admin || updatePermission.isPending}
+                onCheckedChange={(checked) => handleTogglePermission("can_view_counterparties", checked)}
+              />
+            </div>
+          </div>
+          {user.is_admin && (
+            <p className="text-xs text-muted-foreground">
+              Админам всегда доступны все разделы отчётов, отключить нельзя.
+            </p>
+          )}
+        </div>
+      )}
 
       {user && (
         <>

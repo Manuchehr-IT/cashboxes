@@ -44,9 +44,8 @@ async def list_users_endpoint(
 	offset: int = Query(default=0, ge=0),
 	q: str | None = Query(default=None),
 	sort: str | None = Query(default=None),
-	is_active: bool | None = Query(default=None),
 ):
-	query = ListUsersMapper.to_query(limit=limit, offset=offset, q=q, sort=sort, is_active=is_active)
+	query = ListUsersMapper.to_query(limit=limit, offset=offset, q=q, sort=sort)
 	result_dto = await list_users.execute(query)
 	return ListUsersMapper.to_response(result_dto)
 

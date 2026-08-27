@@ -9,9 +9,10 @@ from src.domain.user.enums import CashAccessScope
 class UserDTO(BaseModel):
 	id: UUID
 	username: str
-	is_active: bool
 	is_admin: bool
 	cash_access_scope: CashAccessScope
+	can_view_cashboxes: bool
+	can_view_counterparties: bool
 	created_at: datetime
 	updated_at: datetime
 

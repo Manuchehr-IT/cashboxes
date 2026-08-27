@@ -52,7 +52,6 @@ async def main() -> None:
             user = User.create(
                 username=username,
                 password_hash=password_hash,
-                is_active=True,
                 is_admin=True,
             )
             await uow.user.add(user)

@@ -13,8 +13,9 @@ class UpdateUser:
 			user = await self.uow.user.get(id=command.id)
 			user.update(
 				username=command.username,
-				is_active=command.is_active,
 				cash_access_scope=command.cash_access_scope,
+				can_view_cashboxes=command.can_view_cashboxes,
+				can_view_counterparties=command.can_view_counterparties,
 			)
 			await self.uow.user.update(user)
 			return UserMapper.to_dto(user)

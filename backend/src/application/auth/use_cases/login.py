@@ -15,7 +15,7 @@ class AuthLogin:
 	async def execute(self, command: AuthLoginCommand) -> AuthResultDTO:
 		async with self.uow:
 			user = await self.uow.user.find_by_username(command.username)
-			if not (user and user.is_active):
+			if not user:
 				raise InvalidCredentialsError()
 
 			if not self.hasher.verify_password(command.password, user.password_hash):

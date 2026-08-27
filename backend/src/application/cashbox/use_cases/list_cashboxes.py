@@ -4,6 +4,7 @@ from src.application.cashbox.dtos import CashboxDTO, FailedObjectDTO, ListCashbo
 from src.application.cashbox.queries import ListCashboxesQuery
 from src.domain.object.entities import Object
 from src.domain.user.enums import CashAccessScope
+from src.domain.user.exceptions import CashboxesAccessForbiddenError
 from src.infrastructure.database import UnitOfWork
 from src.infrastructure.external.onec import OneCCashbox, OneCClient
 
@@ -16,6 +17,9 @@ class ListCashboxes:
 	async def execute(self, query: ListCashboxesQuery) -> ListCashboxesDTO:
 		async with self.uow:
 			user = await self.uow.user.get(query.user_id)
+			if not user.effective_can_view_cashboxes:
+				raise CashboxesAccessForbiddenError()
+
 			if user.is_admin:
 				objects = await self.uow.obj.list_active()
 			else:

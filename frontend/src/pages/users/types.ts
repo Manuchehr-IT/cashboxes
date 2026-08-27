@@ -3,9 +3,10 @@ export type CashAccessScope = "main" | "non_main" | "all"
 export type User = {
   id: string
   username: string
-  is_active: boolean
   is_admin: boolean
   cash_access_scope: CashAccessScope
+  can_view_cashboxes: boolean
+  can_view_counterparties: boolean
   created_at: string
   updated_at: string
 }
@@ -15,7 +16,6 @@ export type ListUsersParams = {
   pageSize?: number
   q?: string
   sort?: string
-  is_active?: boolean
 }
 
 export type ListUsersResponse = {
@@ -25,14 +25,14 @@ export type ListUsersResponse = {
 
 export type CreateUserPayload = {
   username: string
-  is_active: boolean
   cash_access_scope?: CashAccessScope
 }
 
 export type UpdateUserPayload = {
   username?: string
-  is_active?: boolean
   cash_access_scope?: CashAccessScope
+  can_view_cashboxes?: boolean
+  can_view_counterparties?: boolean
 }
 
 export type CreateUserResponse = {

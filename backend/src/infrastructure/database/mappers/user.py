@@ -11,9 +11,10 @@ class UserMapper:
 			id=model.id,
 			username=model.username,
 			password_hash=model.password_hash,
-			is_active=model.is_active,
 			is_admin=model.is_admin,
 			cash_access_scope=CashAccessScope(model.cash_access_scope),
+			can_view_cashboxes=model.can_view_cashboxes,
+			can_view_counterparties=model.can_view_counterparties,
 			created_at=model.created_at,
 			updated_at=model.updated_at,
 			_objects=[
@@ -31,9 +32,10 @@ class UserMapper:
 			id=user.id,
 			username=user.username,
 			password_hash=user.password_hash,
-			is_active=user.is_active,
 			is_admin=user.is_admin,
 			cash_access_scope=user.cash_access_scope.value,
+			can_view_cashboxes=user.can_view_cashboxes,
+			can_view_counterparties=user.can_view_counterparties,
 			created_at=user.created_at,
 			updated_at=user.updated_at,
 			objects=[

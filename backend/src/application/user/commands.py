@@ -8,14 +8,16 @@ from src.domain.user.enums import CashAccessScope
 
 class CreateUserCommand(BaseModel):
 	username: str
-	is_active: bool
 	cash_access_scope: CashAccessScope = CashAccessScope.ALL
+	can_view_cashboxes: bool = True
+	can_view_counterparties: bool = True
 
 class UpdateUserCommand(BaseModel):
 	id: UUID
 	username: str | UnsetType = UNSET
-	is_active: bool | UnsetType = UNSET
 	cash_access_scope: CashAccessScope | UnsetType = UNSET
+	can_view_cashboxes: bool | UnsetType = UNSET
+	can_view_counterparties: bool | UnsetType = UNSET
 
 class SetUserPasswordCommand(BaseModel):
 	actor_id: UUID

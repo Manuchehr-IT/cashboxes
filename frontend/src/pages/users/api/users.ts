@@ -18,7 +18,6 @@ export const usersApi = {
       q: params?.q,
       sort: params?.sort,
     }
-    if (params?.is_active !== undefined) query.is_active = params.is_active
     return api.get<ListUsersResponse>("/users", { params: query }).then((r) => r.data)
   },
 
