@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { ChevronDown, ChevronRight, RefreshCw, TriangleAlert } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -86,6 +87,7 @@ export function CounterpartiesPage() {
 
   const selectedAccName = searchParams.get("acc_name") ?? ""
   const selectedManagers = searchParams.getAll("manager")
+  const kontrSearch = searchParams.get("q") ?? ""
 
   const toggleKontr = (kontr: string) => {
     setExpandedKontrs((prev) => {
@@ -113,6 +115,28 @@ export function CounterpartiesPage() {
       return next
     }, { replace: true })
   }
+
+  const setKontrSearch = (value: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (value) next.set("q", value)
+      else next.delete("q")
+      return next
+    }, { replace: true })
+  }
+
+  // Локальное состояние + дебаунс — иначе каждое нажатие клавиши сразу пишет в URL.
+  const [searchInput, setSearchInput] = useState(kontrSearch)
+  useEffect(() => {
+    setSearchInput(kontrSearch)
+  }, [kontrSearch])
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchInput !== kontrSearch) setKontrSearch(searchInput)
+    }, 300)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput])
 
   const query = useQuery({
     queryKey: ["counterparties"],
@@ -144,7 +168,12 @@ export function CounterpartiesPage() {
 
   // Без группировки по объекту — один контрагент может встречаться в нескольких объектах,
   // группируем именно по нему, с общим долгом и разворачиваемым списком записей.
-  const kontrGroups = groupByKontr(flattenDebts(filteredItems))
+  // groupByKontr уже сортирует результат по имени контрагента.
+  const allKontrGroups = groupByKontr(flattenDebts(filteredItems))
+  const normalizedSearch = kontrSearch.trim().toLowerCase()
+  const kontrGroups = normalizedSearch
+    ? allKontrGroups.filter((g) => g.kontr.toLowerCase().includes(normalizedSearch))
+    : allKontrGroups
 
   // Тост не привязан к самому запросу (при переключении счёта/менеджера новый запрос не идёт —
   // фильтрация целиком на фронте): показываем его только при реальной смене счёта и по клику
@@ -192,6 +221,28 @@ export function CounterpartiesPage() {
               ))}
             </SelectContent>
           </Select>
+          {(() => {
+            const searchInputEl = (
+              <Input
+                placeholder="Поиск по контрагенту..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                disabled={!hasAccNameSelected}
+                className="h-9 w-[220px]"
+              />
+            )
+            if (hasAccNameSelected) return searchInputEl
+            return (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span tabIndex={0} className="inline-flex">
+                    {searchInputEl}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>Сначала выберите счёт</TooltipContent>
+              </Tooltip>
+            )
+          })()}
           {(!hasAccNameSelected || managerOptions.length > 1) && (
             <DataTableFacetedFilter
               title="Менеджер"
