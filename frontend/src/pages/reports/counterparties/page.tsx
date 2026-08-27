@@ -58,9 +58,6 @@ function flattenDebts(items: ObjectDebts[]): DebtWithObject[] {
 
 interface KontrGroup {
   kontr: string
-  total: number
-  /** Валюта, если у всех записей контрагента она одна и та же — иначе null (не смешиваем суммы). */
-  currency: string | null
   records: DebtWithObject[]
 }
 
@@ -73,12 +70,28 @@ function groupByKontr(debts: DebtWithObject[]): KontrGroup[] {
     else map.set(d.kontr, [d])
   }
   return Array.from(map.entries())
-    .map(([kontr, records]) => {
-      const total = records.reduce((sum, r) => sum + r.debt, 0)
-      const currencies = new Set(records.map((r) => r.currency))
-      return { kontr, total, currency: currencies.size === 1 ? records[0].currency : null, records }
-    })
+    .map(([kontr, records]) => ({ kontr, records }))
     .sort((a, b) => a.kontr.localeCompare(b.kontr, "ru"))
+}
+
+/** Валюты, встречающиеся у выбранного счёта — без учёта фильтров менеджера/поиска: итоги по валютам
+ * от них не зависят. */
+function getCurrenciesForAccName(items: ObjectDebts[], accName: string): string[] {
+  const set = new Set<string>()
+  for (const group of items) {
+    for (const d of group.debts) {
+      if (d.acc_name === accName) set.add(d.currency)
+    }
+  }
+  return Array.from(set).sort()
+}
+
+function sumDebtByCurrency(items: ObjectDebts[], accName: string, currency: string): number {
+  return items.reduce(
+    (sum, group) =>
+      sum + group.debts.reduce((s, d) => (d.acc_name === accName && d.currency === currency ? s + d.debt : s), 0),
+    0
+  )
 }
 
 export function CounterpartiesPage() {
@@ -149,6 +162,12 @@ export function CounterpartiesPage() {
   const accNameOptions = useMemo(() => getAccNames(items), [items])
   const managerOptions: FacetedFilterOption[] = useMemo(
     () => getManagersForAccName(items, selectedAccName).map((manager) => ({ label: manager, value: manager })),
+    [items, selectedAccName]
+  )
+  // Итоги по валютам считаются только от выбранного счёта — фильтры менеджера и
+  // поисковик по контрагенту их не сужают.
+  const totalCurrencies = useMemo(
+    () => getCurrenciesForAccName(items, selectedAccName),
     [items, selectedAccName]
   )
 
@@ -288,6 +307,35 @@ export function CounterpartiesPage() {
         </div>
       )}
 
+      {hasAccNameSelected && totalCurrencies.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <h3 className="text-sm font-medium text-muted-foreground">Итого</h3>
+          <div className="rounded-md border">
+            <Table className="table-fixed">
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="h-8 w-[80px]">Валюта</TableHead>
+                  <TableHead className="h-8 text-right w-[130px]">Долг</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {totalCurrencies.map((currency) => {
+                  const total = sumDebtByCurrency(items, selectedAccName, currency)
+                  return (
+                    <TableRow key={currency} className="hover:bg-transparent">
+                      <TableCell className="py-1.5 font-medium">{currency}</TableCell>
+                      <TableCell className={`py-1.5 text-right tabular-nums font-medium ${total < 0 ? "text-red-600" : ""}`}>
+                        {formatAmount(total)}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
+
       {query.isPending ? (
         <div className="flex items-center justify-center py-16 text-muted-foreground">
           <Spinner size={20} />
@@ -342,10 +390,8 @@ export function CounterpartiesPage() {
                       <TableCell />
                       <TableCell />
                       <TableCell />
-                      <TableCell className="text-muted-foreground">{group.currency ?? ""}</TableCell>
-                      <TableCell className={`text-right tabular-nums font-medium ${group.total < 0 ? "text-red-600" : ""}`}>
-                        {formatAmount(group.total)}
-                      </TableCell>
+                      <TableCell />
+                      <TableCell />
                     </TableRow>
                     {isExpanded && group.records.map((r, i) => (
                       <TableRow key={i} className="bg-muted/30 hover:bg-muted/30">
