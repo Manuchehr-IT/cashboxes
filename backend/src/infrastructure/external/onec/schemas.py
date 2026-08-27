@@ -47,3 +47,18 @@ class OneCCashDetail(BaseModel):
 
 class OneCCashDetailsResponse(OneCStatusResponse):
 	data: list[OneCCashDetail] = []
+
+
+class OneCDebt(BaseModel):
+	acc_code: str
+	acc_name: str
+	kontr: str
+	manager: str
+	contract: str
+	debt: float
+	currency: str
+	vid_raschet: str = ""
+
+
+class OneCDebtsResponse(OneCStatusResponse):
+	data: list[OneCDebt] = []

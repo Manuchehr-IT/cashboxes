@@ -7,6 +7,7 @@ import { ObjectsPage } from "@/pages/objects"
 import { LogsPage } from "@/pages/logs"
 import { CashboxesPage } from "@/pages/reports/cashboxes"
 import { CashboxDetailPage } from "@/pages/reports/cashbox-detail"
+import { CounterpartiesPage } from "@/pages/reports/counterparties"
 
 import { ProtectedRoute } from "@/components/protected-route"
 import { PublicRoute } from "@/components/public-route"
@@ -34,6 +35,7 @@ export const router = createBrowserRouter([
           { path: "/logs",               element: <LogsPage />     },
           { path: "/reports/cashboxes",  element: <CashboxesPage /> },
           { path: "/reports/cashboxes/:objectId/:cashId", element: <CashboxDetailPage /> },
+          { path: "/reports/counterparties", element: <CounterpartiesPage /> },
         ],
       },
     ],

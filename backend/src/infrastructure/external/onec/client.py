@@ -9,7 +9,15 @@ from pydantic import ValidationError
 from src.core.errors import ExternalServiceRequestError
 from src.infrastructure.external.http import HTTPClient, HTTPMethod
 
-from .schemas import OneCCashbox, OneCCashDetail, OneCCashDetailsResponse, OneCResponse, OneCStatusResponse
+from .schemas import (
+	OneCCashbox,
+	OneCCashDetail,
+	OneCCashDetailsResponse,
+	OneCDebt,
+	OneCDebtsResponse,
+	OneCResponse,
+	OneCStatusResponse,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +46,11 @@ class OneCClient:
 		params = self._date_params(date_from, date_to)
 		params["cashid"] = cash_id
 		parsed = await self._fetch(details_url, params, OneCCashDetailsResponse)
+		return parsed.data
+
+	async def fetch_debts(self, url: str) -> list[OneCDebt]:
+		debts_url = self._child_url(url, "debts")
+		parsed = await self._fetch(debts_url, {}, OneCDebtsResponse)
 		return parsed.data
 
 	async def _fetch(self, url: str, params: dict[str, Any], response_model: type[ResponseT]) -> ResponseT:

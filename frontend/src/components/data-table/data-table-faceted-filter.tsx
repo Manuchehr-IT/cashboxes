@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 export interface FacetedFilterOption {
   label: string
@@ -16,6 +17,8 @@ interface DataTableFacetedFilterProps {
   options: FacetedFilterOption[]
   selected: string[]
   onChange: (values: string[]) => void
+  disabled?: boolean
+  disabledTooltip?: string
 }
 
 export function DataTableFacetedFilter({
@@ -23,6 +26,8 @@ export function DataTableFacetedFilter({
   options,
   selected,
   onChange,
+  disabled,
+  disabledTooltip,
 }: DataTableFacetedFilterProps) {
   const selectedSet = new Set(selected)
 
@@ -32,41 +37,57 @@ export function DataTableFacetedFilter({
     onChange(Array.from(next))
   }
 
+  const trigger = (
+    <Button variant="outline" size="sm" className="h-8 border-dashed gap-1.5" disabled={disabled}>
+      <PlusCircle className="size-4" />
+      {title}
+      {selectedSet.size > 0 && (
+        <>
+          <Separator orientation="vertical" className="mx-1 h-4" />
+          <Badge variant="secondary" className="rounded-sm px-1 font-normal lg:hidden">
+            {selectedSet.size}
+          </Badge>
+          <div className="hidden gap-1 lg:flex">
+            {selectedSet.size > 2 ? (
+              <Badge variant="secondary" className="rounded-sm px-1 font-normal">
+                Выбрано: {selectedSet.size}
+              </Badge>
+            ) : (
+              options
+                .filter((o) => selectedSet.has(o.value))
+                .map((o) => (
+                  <Badge
+                    key={o.value}
+                    variant="secondary"
+                    className="rounded-sm px-1 font-normal"
+                  >
+                    {o.label}
+                  </Badge>
+                ))
+            )}
+          </div>
+        </>
+      )}
+    </Button>
+  )
+
   return (
     <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="h-8 border-dashed gap-1.5">
-          <PlusCircle className="size-4" />
-          {title}
-          {selectedSet.size > 0 && (
-            <>
-              <Separator orientation="vertical" className="mx-1 h-4" />
-              <Badge variant="secondary" className="rounded-sm px-1 font-normal lg:hidden">
-                {selectedSet.size}
-              </Badge>
-              <div className="hidden gap-1 lg:flex">
-                {selectedSet.size > 2 ? (
-                  <Badge variant="secondary" className="rounded-sm px-1 font-normal">
-                    Выбрано: {selectedSet.size}
-                  </Badge>
-                ) : (
-                  options
-                    .filter((o) => selectedSet.has(o.value))
-                    .map((o) => (
-                      <Badge
-                        key={o.value}
-                        variant="secondary"
-                        className="rounded-sm px-1 font-normal"
-                      >
-                        {o.label}
-                      </Badge>
-                    ))
-                )}
-              </div>
-            </>
-          )}
-        </Button>
-      </PopoverTrigger>
+      {disabled && disabledTooltip ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            {/* span-обёртка — disabled-кнопка не всплывает мышиные события, тултип бы не показался */}
+            <span tabIndex={0} className="inline-flex">
+              <PopoverTrigger asChild>
+                {trigger}
+              </PopoverTrigger>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{disabledTooltip}</TooltipContent>
+        </Tooltip>
+      ) : (
+        <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+      )}
       <PopoverContent className="w-52 p-1" align="start">
         <div className="flex flex-col">
           {options.map((option) => {

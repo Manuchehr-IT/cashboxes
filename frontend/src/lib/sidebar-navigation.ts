@@ -1,9 +1,11 @@
-import { Users, Building2, Landmark, ScrollText, type LucideIcon } from "lucide-react"
+import { Users, Building2, Landmark, ScrollText, Handshake, type LucideIcon } from "lucide-react"
 
 export type SidebarNavigationItem = {
   title: string
   url: string
   icon: LucideIcon
+  /** Пункт скрыт, пока у пользователя не выдано соответствующее разрешение (админы — всегда). */
+  permissionKey?: "can_view_cashboxes" | "can_view_counterparties"
 }
 
 export type SidebarNavigationGroup = {
@@ -26,7 +28,8 @@ export const navigationGroups: SidebarNavigationGroup[] = [
     title: "Отчёты",
     adminOnly: false,
     items: [
-      { title: "Кассы", url: "/reports/cashboxes", icon: Landmark },
+      { title: "Кассы",        url: "/reports/cashboxes",      icon: Landmark,  permissionKey: "can_view_cashboxes"      },
+      { title: "Контрагенты",  url: "/reports/counterparties", icon: Handshake, permissionKey: "can_view_counterparties" },
     ],
   },
 ]

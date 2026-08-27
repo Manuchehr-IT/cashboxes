@@ -1,0 +1,1 @@
+export { CounterpartiesPage } from "./page"
