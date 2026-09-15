@@ -59,7 +59,7 @@ services:
       # Бэкенд нужен только фронту — отдельного порта наружу не публикует, доступен только
       # под тем же Host (IP сервера), что и фронт, и только по /v1, /storage. Приоритет выше,
       # чем у catch-all роутера фронта ниже — иначе на этих путях выигрывал бы он.
-      - "traefik.http.routers.cashboxes_backend.rule=Host(`${DOMAIN}`) && PathPrefix(`/v1`, `/storage`)"
+      - "traefik.http.routers.cashboxes_backend.rule=Host(${DOMAIN}) && PathPrefix(`/v1`, `/storage`)"
       - "traefik.http.routers.cashboxes_backend.entrypoints=web"
       - "traefik.http.routers.cashboxes_backend.priority=20"
       - "traefik.http.services.cashboxes_backend.loadbalancer.server.port=8000"
@@ -90,7 +90,7 @@ services:
       - "traefik.enable=true"
       # catch-all — приоритет ниже, чем у backend'а выше, чтобы /v1 и /storage не перехватывались
       # этим роутером.
-      - "traefik.http.routers.cashboxes_frontend.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.cashboxes_frontend.rule=Host(${DOMAIN})"
       - "traefik.http.routers.cashboxes_frontend.entrypoints=web"
       - "traefik.http.routers.cashboxes_frontend.priority=1"
       - "traefik.http.services.cashboxes_frontend.loadbalancer.server.port=80"

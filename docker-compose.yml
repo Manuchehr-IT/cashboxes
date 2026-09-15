@@ -39,7 +39,7 @@ services:
       - backend/.env
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.cashboxes_backend.rule=Host(`${DOMAIN}`) && PathPrefix(`/v1`, `/storage`)"
+      - "traefik.http.routers.cashboxes_backend.rule=Host(${DOMAIN}) && PathPrefix(`/v1`, `/storage`)"
       - "traefik.http.routers.cashboxes_backend.entrypoints=websecure"
       - "traefik.http.routers.cashboxes_backend.tls=true"
       - "traefik.http.routers.cashboxes_backend.tls.certresolver=myresolver"
@@ -73,7 +73,7 @@ services:
       - "traefik.enable=true"
       # catch-all — приоритет ниже, чем у backend'а выше, чтобы /v1 и /storage не перехватывались
       # этим роутером.
-      - "traefik.http.routers.cashboxes_frontend.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.cashboxes_frontend.rule=Host(${DOMAIN})"
       - "traefik.http.routers.cashboxes_frontend.entrypoints=websecure"
       - "traefik.http.routers.cashboxes_frontend.tls=true"
       - "traefik.http.routers.cashboxes_frontend.tls.certresolver=myresolver"
