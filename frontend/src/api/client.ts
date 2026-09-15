@@ -1,16 +1,8 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios"
 import { clearAccessToken, getAccessToken } from "@/lib/auth"
 
-/** Converts a server-relative path (e.g. /storage/…) to a full URL using the API origin. */
-export function resolveStorageUrl(path: string | null | undefined): string | null {
-  if (!path) return null
-  if (path.startsWith("http://") || path.startsWith("https://")) return path
-  const base = (import.meta.env.VITE_API_URL as string | undefined) ?? ""
-  return `${base}${path}`
-}
-
 export const api = axios.create({
-  baseURL: `${import.meta.env.VITE_API_URL}/v1`,
+  baseURL: "/v1",
   headers: {
     "Content-Type": "application/json",
   },

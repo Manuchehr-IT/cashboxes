@@ -1,4 +1,21 @@
 services:
+  # Свой, самостоятельный Traefik — в отличие от docker-compose.yml, где Traefik общий и внешний
+  # (traefik-infra, сеть web), тут сервер обычно доступен только по голому IP в локальной сети:
+  # Let's Encrypt не выпускает сертификаты на IP, поэтому здесь просто HTTP, без TLS/certresolver.
+  traefik:
+    image: traefik:v2.11
+    restart: unless-stopped
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+    ports:
+      - "${FRONTEND_PORT}:80"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - app-network
+
   postgres:
     image: postgres:16.2
     restart: unless-stopped
@@ -37,8 +54,15 @@ services:
     env_file:
       - .env
       - backend/.env
-    ports:
-      - "${BACKEND_PORT:-8000}:8000"
+    labels:
+      - "traefik.enable=true"
+      # Бэкенд нужен только фронту — отдельного порта наружу не публикует, доступен только
+      # под тем же Host (IP сервера), что и фронт, и только по /v1, /storage. Приоритет выше,
+      # чем у catch-all роутера фронта ниже — иначе на этих путях выигрывал бы он.
+      - "traefik.http.routers.cashboxes_backend.rule=Host(`${DOMAIN}`) && PathPrefix(`/v1`, `/storage`)"
+      - "traefik.http.routers.cashboxes_backend.entrypoints=web"
+      - "traefik.http.routers.cashboxes_backend.priority=20"
+      - "traefik.http.services.cashboxes_backend.loadbalancer.server.port=8000"
     volumes:
       - ./backend/alembic/versions:/app/alembic/versions
       - ./backend/logs:/app/logs
@@ -62,10 +86,14 @@ services:
     build:
       context: frontend
       dockerfile: Dockerfile.production
-      args:
-        VITE_API_URL: ${VITE_API_URL}
-    ports:
-      - "${FRONTEND_PORT:-80}:80"
+    labels:
+      - "traefik.enable=true"
+      # catch-all — приоритет ниже, чем у backend'а выше, чтобы /v1 и /storage не перехватывались
+      # этим роутером.
+      - "traefik.http.routers.cashboxes_frontend.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.cashboxes_frontend.entrypoints=web"
+      - "traefik.http.routers.cashboxes_frontend.priority=1"
+      - "traefik.http.services.cashboxes_frontend.loadbalancer.server.port=80"
     networks:
       - app-network
 

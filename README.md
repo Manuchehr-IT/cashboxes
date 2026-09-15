@@ -35,12 +35,42 @@ docker compose exec backend alembic upgrade head
 > в переносимый набор не попадает — иначе Traefik-роутинг для сервисов окажется выключен, а
 > backend/frontend запустятся в dev-режиме.
 
-## Деплой в локальной сети (без Traefik)
+## Traefik
 
-Если сервер — обычный компьютер в локальной сети компании (без домена и внешнего доступа),
-используйте `docker-compose.lan.yml` вместо `docker-compose.yml`. Это отдельный самостоятельный
-compose-файл (не оверлей — Docker Compose не умеет вычитать лейблы оверлеем, только добавлять):
-без Traefik, без сети `web`, backend и frontend торчат наружу напрямую через `ports`.
+- **prod** (`docker-compose.yml`) — рассчитан на **внешний**, общий Traefik: отдельный, уже
+  готовый инстанс из [traefik-infra](https://github.com/Manuchehr-IT/traefik-infra), поднятый на
+  сервере отдельно (своим `docker compose up`, сеть `web`). Сам cashboxes его не поднимает и не
+  настраивает — только объявляет лейблы на `backend`/`frontend` и подключается к сети `web`
+  (`external: true`). HTTPS через Let's Encrypt (DNS-01 challenge), нужен настоящий домен в `DOMAIN`.
+- **LAN** (`docker-compose.lan.yml`) — свой Traefik прямо в этом compose-файле, без TLS: сервер тут
+  обычно доступен только по голому IP в локальной сети, а Let's Encrypt не выпускает сертификаты
+  на IP — поэтому просто HTTP. `DOMAIN` в этом случае — IP сервера, а не домен.
+
+## Проксирование фронт → бэкенд
+
+Бэкенд нужен только фронту: отдельного публичного домена/порта у него нет ни в одном из
+compose-файлов, наружу торчит только frontend. Браузер всегда обращается к одному ориджину —
+`/v1/*` и `/storage/*` (то, что реально дёргает `frontend/src/api/client.ts`) уходят туда же и
+долетают до backend'а без CORS и без второго домена:
+
+- **prod** и **LAN** — маршрутизацию делает сам **Traefik**, без nginx: у backend'а лейблом
+  объявлен роутер на тот же `Host`, что и у frontend'а, но только для `PathPrefix(/v1, /storage)`
+  и с более высоким приоритетом — он и перехватывает эти пути раньше catch-all роутера frontend'а.
+  Собранный фронт при этом — обычная статика (`serve`, `frontend/Dockerfile.production`), сама
+  ничего не проксирует.
+- **dev** (`docker-compose.override.yml`, `vite dev`) — то же самое делает `server.proxy` в
+  `frontend/vite.config.ts`, с целью `http://backend:8000` (имя сервиса в docker-сети).
+
+Поэтому в прод/LAN-сборку `VITE_API_URL` больше не передаётся — baseURL axios всегда
+относительный `/v1` (см. `api/client.ts`), доходит до backend'а через Traefik на своём же
+ориджине. `VITE_API_URL` остался только для dev (см. «Локальная разработка без Docker» ниже).
+
+## Деплой в локальной сети
+
+Если сервер стоит в локальной сети компании, без домена и внешнего доступа, — используйте
+`docker-compose.lan.yml` вместо `docker-compose.yml`. Это отдельный самостоятельный compose-файл
+(не оверлей — Docker Compose не умеет вычитать лейблы оверлеем, только добавлять): свой Traefik,
+без домена, без сети `web` (см. «Traefik» выше).
 
 ```bash
 docker compose -f docker-compose.lan.yml up -d --build
@@ -49,20 +79,15 @@ docker compose -f docker-compose.lan.yml exec backend alembic upgrade head
 
 В `.env` для этого сценария важно:
 
-- `VITE_API_URL` — не домен, а `http://<IP-сервера-в-сети>:8000` (порт backend, см. `BACKEND_PORT`
-  ниже). Значение вшивается в сборку фронтенда на этапе `docker build`, поменяли — нужно
-  пересобрать (`--build`).
-- `APP__ALLOWED_ORIGINS` — должен включать ориджин, с которого реально открывают сайт в браузере,
-  например `["http://<IP-сервера-в-сети>:80"]` (или без `:80`, если фронт слушает порт по
-  умолчанию) — иначе браузер зарежет запросы к API по CORS.
-- `BACKEND_PORT` / `FRONTEND_PORT` — опционально, порты на хосте (по умолчанию `8000` и `80`);
-  задать, если 80 уже занят на этой машине чем-то другим.
-- `BACKEND_DOMAIN`/`FRONTEND_DOMAIN` в этом сценарии не используются (это только для
-  `docker-compose.yml`/Traefik) — можно оставить как есть, не мешает.
+- `DOMAIN` — не домен, а IP сервера в локальной сети (например `192.168.1.50`); если
+  `FRONTEND_PORT` не `80` — указывайте вместе с портом (`192.168.1.50:8080`), потому что Traefik
+  сверяет это со значением заголовка `Host`, которое браузер отправит именно с портом.
+- `FRONTEND_PORT` — опционально, порт Traefik на хосте (по умолчанию `80`); задать, если 80 уже
+  занят на этой машине чем-то другим.
 
 ## Переменные окружения
 
-`.env` (корень репозитория, используется docker-compose и фронтендом):
+`.env` (корень репозитория, используется docker-compose):
 
 | Переменная | Назначение |
 |---|---|
@@ -71,8 +96,8 @@ docker compose -f docker-compose.lan.yml exec backend alembic upgrade head
 | `APP__TITLE`, `APP__LANGUAGES`, `APP__DEFAULT_LANGUAGE` | метаданные приложения |
 | `DATABASE__NAME`, `DATABASE__USER`, `DATABASE__PASSWORD`, `DATABASE__HOST`, `DATABASE__PORT` | PostgreSQL |
 | `REDIS__HOST`, `REDIS__PORT` | Redis |
-| `VITE_API_URL` | адрес backend API для фронтенда |
-| `BACKEND_DOMAIN`, `FRONTEND_DOMAIN` | домены для Traefik-лейблов (`Host(...)`) в проде; на локали можно оставить `localhost` |
+| `DOMAIN` | Traefik-`Host(...)`: реальный домен в проде, IP сервера на LAN |
+| `FRONTEND_PORT` | порт своего Traefik на хосте в LAN-сценарии (по умолчанию `80`) |
 
 `backend/.env` (только backend-контейнер):
 
@@ -114,6 +139,11 @@ cd frontend
 npm install
 npm run dev
 ```
+
+По умолчанию Vite dev-сервер проксирует `/v1` и `/storage` на `http://localhost:8000`
+(backend из примера выше, запущенный тем же способом на хосте). Если backend слушает
+другой адрес, переопределите целью прокси через `VITE_API_URL` — например,
+в `frontend/.env.local` (см. `frontend/vite.config.ts`).
 
 ## Проверки
 
