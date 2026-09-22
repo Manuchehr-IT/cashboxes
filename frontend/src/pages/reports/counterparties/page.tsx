@@ -8,11 +8,14 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { DataTableFacetedFilter, type FacetedFilterOption } from "@/components/data-table/data-table-faceted-filter"
 import { getErrorMessage } from "@/lib/api-error"
 import { counterpartiesApi } from "@/pages/reports/counterparties/api/counterparties"
 import type { Debt, ObjectDebts } from "@/pages/reports/counterparties/types"
+
+type View = "by_account" | "by_kontr"
 
 function formatAmount(value: number): string {
   return value.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -98,6 +101,7 @@ export function CounterpartiesPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [expandedKontrs, setExpandedKontrs] = useState<Set<string>>(new Set())
 
+  const view: View = searchParams.get("view") === "by_kontr" ? "by_kontr" : "by_account"
   const selectedAccName = searchParams.get("acc_name") ?? ""
   const selectedManagers = searchParams.getAll("manager")
   const kontrSearch = searchParams.get("q") ?? ""
@@ -109,6 +113,15 @@ export function CounterpartiesPage() {
       else next.add(kontr)
       return next
     })
+  }
+
+  const setView = (value: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (value === "by_kontr") next.set("view", value)
+      else next.delete("view")
+      return next
+    }, { replace: true })
   }
 
   const setAccName = (value: string) => {
@@ -171,7 +184,8 @@ export function CounterpartiesPage() {
     [items, selectedAccName]
   )
 
-  // acc_name — обязательный фильтр: пока счёт не выбран, данные не показываем вообще.
+  // acc_name — обязательный фильтр на вкладке «По счетам»: пока счёт не выбран, данные не
+  // показываем вообще.
   const hasAccNameSelected = !!selectedAccName
   const filteredItems = hasAccNameSelected
     ? items
@@ -185,39 +199,63 @@ export function CounterpartiesPage() {
       .filter((group) => group.debts.length > 0)
     : []
 
+  const normalizedSearch = kontrSearch.trim().toLowerCase()
+
   // Без группировки по объекту — один контрагент может встречаться в нескольких объектах,
   // группируем именно по нему, с общим долгом и разворачиваемым списком записей.
   // groupByKontr уже сортирует результат по имени контрагента.
   const allKontrGroups = groupByKontr(flattenDebts(filteredItems))
-  const normalizedSearch = kontrSearch.trim().toLowerCase()
   const kontrGroups = normalizedSearch
     ? allKontrGroups.filter((g) => g.kontr.toLowerCase().includes(normalizedSearch))
     : allKontrGroups
+
+  // «По контрагенту» — без выбора счёта вообще, сразу все контрагенты по всем объектам и счетам.
+  const everyKontrGroup = groupByKontr(flattenDebts(items))
+  const everyKontrGroupFiltered = normalizedSearch
+    ? everyKontrGroup.filter((g) => g.kontr.toLowerCase().includes(normalizedSearch))
+    : everyKontrGroup
 
   // Тост не привязан к самому запросу (при переключении счёта/менеджера новый запрос не идёт —
   // фильтрация целиком на фронте): показываем его только при реальной смене счёта и по клику
   // «Обновить», но не при первом открытии страницы, пока счёт ещё не выбран.
   const lastToastedAccName = useRef<string | null>(null)
   useEffect(() => {
+    if (view !== "by_account") return
     if (!selectedAccName) return
     if (lastToastedAccName.current === selectedAccName) return
     lastToastedAccName.current = selectedAccName
     const count = countDebts(filteredItems)
     toast.success(`Показано ${count} ${pluralizeRecords(count)}`)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedAccName])
+  }, [view, selectedAccName])
 
   const handleRefresh = async () => {
     try {
       await query.refetch({ throwOnError: true })
-      if (hasAccNameSelected) {
+      if (view === "by_account" && hasAccNameSelected) {
         const count = countDebts(filteredItems)
+        toast.success(`Показано ${count} ${pluralizeRecords(count)}`)
+      } else if (view === "by_kontr") {
+        const count = countDebts(items)
         toast.success(`Показано ${count} ${pluralizeRecords(count)}`)
       }
     } catch (err) {
       toast.error(getErrorMessage(err))
     }
   }
+
+  const refreshDisabled = query.isFetching || (view === "by_account" && !hasAccNameSelected)
+  const refreshButton = (
+    <Button
+      variant="outline"
+      size="icon"
+      onClick={handleRefresh}
+      disabled={refreshDisabled}
+      aria-label="Обновить"
+    >
+      {query.isRefetching ? <Spinner size={16} /> : <RefreshCw className="size-4" />}
+    </Button>
+  )
 
   return (
     <>
@@ -227,65 +265,60 @@ export function CounterpartiesPage() {
           <p className="text-muted-foreground">Задолженности по счетам и контрагентам</p>
         </div>
 
-        <div className="flex items-center gap-3 flex-wrap">
-          {/* key сбрасывает внутреннее состояние Select при возврате selectedAccName к "" —
-              иначе Radix Select продолжает показывать последнее значение вместо плейсхолдера. */}
-          <Select key={selectedAccName} value={selectedAccName || undefined} onValueChange={setAccName}>
-            <SelectTrigger className="w-[280px]">
-              <SelectValue placeholder="Выберите счёт" />
-            </SelectTrigger>
-            <SelectContent position="popper" align="start">
-              {accNameOptions.map((accName) => (
-                <SelectItem key={accName} value={accName}>{accName}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {(() => {
-            const searchInputEl = (
-              <Input
-                placeholder="Поиск по контрагенту..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
+        <Tabs value={view} onValueChange={setView}>
+          <TabsList>
+            <TabsTrigger value="by_account">По счетам</TabsTrigger>
+            <TabsTrigger value="by_kontr">По контрагенту</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {view === "by_account" ? (
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* key сбрасывает внутреннее состояние Select при возврате selectedAccName к "" —
+                иначе Radix Select продолжает показывать последнее значение вместо плейсхолдера. */}
+            <Select key={selectedAccName} value={selectedAccName || undefined} onValueChange={setAccName}>
+              <SelectTrigger className="w-[280px]">
+                <SelectValue placeholder="Выберите счёт" />
+              </SelectTrigger>
+              <SelectContent position="popper" align="start">
+                {accNameOptions.map((accName) => (
+                  <SelectItem key={accName} value={accName}>{accName}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {(() => {
+              const searchInputEl = (
+                <Input
+                  placeholder="Поиск по контрагенту..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  disabled={!hasAccNameSelected}
+                  className="h-9 w-[220px]"
+                />
+              )
+              if (hasAccNameSelected) return searchInputEl
+              return (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span tabIndex={0} className="inline-flex">
+                      {searchInputEl}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>Сначала выберите счёт</TooltipContent>
+                </Tooltip>
+              )
+            })()}
+            {(!hasAccNameSelected || managerOptions.length > 1) && (
+              <DataTableFacetedFilter
+                title="Менеджер"
+                options={managerOptions}
+                selected={selectedManagers}
+                onChange={setManagers}
                 disabled={!hasAccNameSelected}
-                className="h-9 w-[220px]"
+                disabledTooltip="Сначала выберите счёт"
               />
-            )
-            if (hasAccNameSelected) return searchInputEl
-            return (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span tabIndex={0} className="inline-flex">
-                    {searchInputEl}
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>Сначала выберите счёт</TooltipContent>
-              </Tooltip>
-            )
-          })()}
-          {(!hasAccNameSelected || managerOptions.length > 1) && (
-            <DataTableFacetedFilter
-              title="Менеджер"
-              options={managerOptions}
-              selected={selectedManagers}
-              onChange={setManagers}
-              disabled={!hasAccNameSelected}
-              disabledTooltip="Сначала выберите счёт"
-            />
-          )}
-          {(() => {
-            const refreshButton = (
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={handleRefresh}
-                disabled={!hasAccNameSelected || query.isFetching}
-                aria-label="Обновить"
-              >
-                {query.isRefetching ? <Spinner size={16} /> : <RefreshCw className="size-4" />}
-              </Button>
-            )
-            if (hasAccNameSelected) return refreshButton
-            return (
+            )}
+            {hasAccNameSelected ? refreshButton : (
               <Tooltip>
                 <TooltipTrigger asChild>
                   {/* span-обёртка — disabled-кнопка не всплывает мышиные события, тултип бы не показался */}
@@ -295,9 +328,19 @@ export function CounterpartiesPage() {
                 </TooltipTrigger>
                 <TooltipContent>Сначала выберите счёт</TooltipContent>
               </Tooltip>
-            )
-          })()}
-        </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-3 flex-wrap">
+            <Input
+              placeholder="Поиск по контрагенту..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="h-9 w-[220px]"
+            />
+            {refreshButton}
+          </div>
+        )}
       </div>
 
       {failedObjects.length > 0 && (
@@ -307,7 +350,7 @@ export function CounterpartiesPage() {
         </div>
       )}
 
-      {hasAccNameSelected && totalCurrencies.length > 0 && (
+      {view === "by_account" && hasAccNameSelected && totalCurrencies.length > 0 && (
         <div className="flex flex-col gap-1.5">
           <h3 className="text-sm font-medium text-muted-foreground">Итого</h3>
           <div className="rounded-md border">
@@ -348,11 +391,73 @@ export function CounterpartiesPage() {
         <div className="flex items-center justify-center py-16 text-muted-foreground">
           Нет доступных объектов с данными по контрагентам
         </div>
-      ) : !hasAccNameSelected ? (
-        <div className="flex items-center justify-center py-16 text-muted-foreground">
-          Выберите счёт, чтобы увидеть данные
-        </div>
-      ) : kontrGroups.length === 0 ? (
+      ) : view === "by_account" ? (
+        !hasAccNameSelected ? (
+          <div className="flex items-center justify-center py-16 text-muted-foreground">
+            Выберите счёт, чтобы увидеть данные
+          </div>
+        ) : kontrGroups.length === 0 ? (
+          <div className="flex items-center justify-center py-16 text-muted-foreground">
+            Нет данных по выбранным фильтрам
+          </div>
+        ) : (
+          <div className="rounded-md border">
+            <Table className="table-fixed">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[240px]">Контрагент</TableHead>
+                  <TableHead className="w-[200px]">Объект</TableHead>
+                  <TableHead className="w-[200px]">Договор</TableHead>
+                  <TableHead className="w-[130px]">Менеджер</TableHead>
+                  <TableHead className="w-[130px]">Вид расчёта</TableHead>
+                  <TableHead className="w-[80px]">Валюта</TableHead>
+                  <TableHead className="text-right w-[130px]">Долг</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {kontrGroups.map((group) => {
+                  const isExpanded = expandedKontrs.has(group.kontr)
+                  return (
+                    <Fragment key={group.kontr}>
+                      <TableRow className="cursor-pointer" onClick={() => toggleKontr(group.kontr)}>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-1.5">
+                            {isExpanded ? (
+                              <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+                            ) : (
+                              <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                            )}
+                            <span className="truncate" title={group.kontr}>{group.kontr}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell />
+                        <TableCell />
+                        <TableCell />
+                        <TableCell />
+                        <TableCell />
+                        <TableCell />
+                      </TableRow>
+                      {isExpanded && group.records.map((r, i) => (
+                        <TableRow key={i} className="bg-muted/30 hover:bg-muted/30">
+                          <TableCell />
+                          <TableCell className="text-sm text-muted-foreground truncate" title={r.object_title}>{r.object_title}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground truncate" title={r.contract}>{r.contract}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground truncate" title={r.manager}>{r.manager}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground truncate" title={r.vid_raschet}>{r.vid_raschet}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{r.currency}</TableCell>
+                          <TableCell className={`text-sm text-right tabular-nums ${r.debt < 0 ? "text-red-600" : ""}`}>
+                            {formatAmount(r.debt)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </Fragment>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )
+      ) : everyKontrGroupFiltered.length === 0 ? (
         <div className="flex items-center justify-center py-16 text-muted-foreground">
           Нет данных по выбранным фильтрам
         </div>
@@ -361,17 +466,18 @@ export function CounterpartiesPage() {
           <Table className="table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[240px]">Контрагент</TableHead>
-                <TableHead className="w-[200px]">Объект</TableHead>
-                <TableHead className="w-[200px]">Договор</TableHead>
-                <TableHead className="w-[130px]">Менеджер</TableHead>
-                <TableHead className="w-[130px]">Вид расчёта</TableHead>
+                <TableHead className="w-[220px]">Контрагент</TableHead>
+                <TableHead className="w-[160px]">Счёт</TableHead>
+                <TableHead className="w-[160px]">Объект</TableHead>
+                <TableHead className="w-[160px]">Договор</TableHead>
+                <TableHead className="w-[120px]">Менеджер</TableHead>
+                <TableHead className="w-[120px]">Вид расчёта</TableHead>
                 <TableHead className="w-[80px]">Валюта</TableHead>
                 <TableHead className="text-right w-[130px]">Долг</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {kontrGroups.map((group) => {
+              {everyKontrGroupFiltered.map((group) => {
                 const isExpanded = expandedKontrs.has(group.kontr)
                 return (
                   <Fragment key={group.kontr}>
@@ -392,10 +498,12 @@ export function CounterpartiesPage() {
                       <TableCell />
                       <TableCell />
                       <TableCell />
+                      <TableCell />
                     </TableRow>
                     {isExpanded && group.records.map((r, i) => (
                       <TableRow key={i} className="bg-muted/30 hover:bg-muted/30">
                         <TableCell />
+                        <TableCell className="text-sm text-muted-foreground truncate" title={r.acc_name}>{r.acc_name}</TableCell>
                         <TableCell className="text-sm text-muted-foreground truncate" title={r.object_title}>{r.object_title}</TableCell>
                         <TableCell className="text-sm text-muted-foreground truncate" title={r.contract}>{r.contract}</TableCell>
                         <TableCell className="text-sm text-muted-foreground truncate" title={r.manager}>{r.manager}</TableCell>
