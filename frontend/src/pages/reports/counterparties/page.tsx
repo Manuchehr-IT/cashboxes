@@ -2,8 +2,9 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { ChevronDown, ChevronRight, RefreshCw, TriangleAlert } from "lucide-react"
+import { ChevronDown, ChevronRight, Download, Eye, RefreshCw, TriangleAlert } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
@@ -53,6 +54,30 @@ function getManagersForAccName(items: ObjectDebts[], accName: string): string[] 
   return Array.from(set).sort()
 }
 
+/** Объекты, реально встречающиеся в данных — если accName задан, только для этого счёта. */
+function getObjectOptions(items: ObjectDebts[], accName?: string): string[] {
+  const set = new Set<string>()
+  for (const group of items) {
+    for (const d of group.debts) {
+      if (accName && d.acc_name !== accName) continue
+      set.add(group.object_title)
+    }
+  }
+  return Array.from(set).sort()
+}
+
+/** Виды расчёта, реально встречающиеся в данных — если accName задан, только для этого счёта. */
+function getVidRaschetOptions(items: ObjectDebts[], accName?: string): string[] {
+  const set = new Set<string>()
+  for (const group of items) {
+    for (const d of group.debts) {
+      if (accName && d.acc_name !== accName) continue
+      set.add(d.vid_raschet)
+    }
+  }
+  return Array.from(set).sort()
+}
+
 type DebtWithObject = Debt & { object_title: string }
 
 function flattenDebts(items: ObjectDebts[]): DebtWithObject[] {
@@ -97,13 +122,78 @@ function sumDebtByCurrency(items: ObjectDebts[], accName: string, currency: stri
   )
 }
 
+interface KontrCurrencyTotals {
+  currency: string
+  /** Итоговое сальдо (может быть и в минусе — тогда в сумме перевешивает наш долг перед контрагентом). */
+  net: number
+  /** Долг контрагента перед нами — сумма положительных debt. */
+  theirDebt: number
+  /** Наш долг перед контрагентом — сумма модулей отрицательных debt. */
+  ourDebt: number
+}
+
+/** Итоги по контрагенту в разрезе валют, по всем счетам и объектам сразу (без учёта активных
+ * фильтров — детализация всегда показывает полную картину по контрагенту). */
+function getKontrCurrencyTotals(items: ObjectDebts[], kontr: string): KontrCurrencyTotals[] {
+  const map = new Map<string, KontrCurrencyTotals>()
+  for (const group of items) {
+    for (const d of group.debts) {
+      if (d.kontr !== kontr) continue
+      let totals = map.get(d.currency)
+      if (!totals) {
+        totals = { currency: d.currency, net: 0, theirDebt: 0, ourDebt: 0 }
+        map.set(d.currency, totals)
+      }
+      totals.net += d.debt
+      if (d.debt > 0) totals.theirDebt += d.debt
+      else if (d.debt < 0) totals.ourDebt += -d.debt
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => a.currency.localeCompare(b.currency))
+}
+
+function sanitizeFilename(value: string): string {
+  return value.replace(/[\\/:*?"<>|]/g, "_")
+}
+
+function todayForFilename(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+/** Строки для экспорта «По счетам» — счёт один и тот же для всех строк (выбран фильтром),
+ * отдельной колонкой не дублируем. */
+function buildByAccountExportRows(groups: KontrGroup[]): (string | number)[][] {
+  const rows: (string | number)[][] = [["Контрагент", "Объект", "Договор", "Менеджер", "Вид расчёта", "Валюта", "Долг"]]
+  for (const group of groups) {
+    for (const r of group.records) {
+      rows.push([group.kontr, r.object_title, r.contract, r.manager, r.vid_raschet, r.currency, r.debt])
+    }
+  }
+  return rows
+}
+
+/** Строки для экспорта «По контрагенту» — один контрагент может встречаться на разных счетах,
+ * поэтому счёт указываем в отдельной колонке. */
+function buildByKontrExportRows(groups: KontrGroup[]): (string | number)[][] {
+  const rows: (string | number)[][] = [["Контрагент", "Счёт", "Объект", "Договор", "Менеджер", "Вид расчёта", "Валюта", "Долг"]]
+  for (const group of groups) {
+    for (const r of group.records) {
+      rows.push([group.kontr, r.acc_name, r.object_title, r.contract, r.manager, r.vid_raschet, r.currency, r.debt])
+    }
+  }
+  return rows
+}
+
 export function CounterpartiesPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [expandedKontrs, setExpandedKontrs] = useState<Set<string>>(new Set())
+  const [detailKontr, setDetailKontr] = useState<string | null>(null)
 
   const view: View = searchParams.get("view") === "by_kontr" ? "by_kontr" : "by_account"
   const selectedAccName = searchParams.get("acc_name") ?? ""
   const selectedManagers = searchParams.getAll("manager")
+  const selectedObjects = searchParams.getAll("object")
+  const selectedVidRaschet = searchParams.getAll("vid_raschet")
   const kontrSearch = searchParams.get("q") ?? ""
 
   const toggleKontr = (kontr: string) => {
@@ -138,6 +228,24 @@ export function CounterpartiesPage() {
       const next = new URLSearchParams(prev)
       next.delete("manager")
       for (const value of values) next.append("manager", value)
+      return next
+    }, { replace: true })
+  }
+
+  const setObjects = (values: string[]) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete("object")
+      for (const value of values) next.append("object", value)
+      return next
+    }, { replace: true })
+  }
+
+  const setVidRaschet = (values: string[]) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete("vid_raschet")
+      for (const value of values) next.append("vid_raschet", value)
       return next
     }, { replace: true })
   }
@@ -177,11 +285,40 @@ export function CounterpartiesPage() {
     () => getManagersForAccName(items, selectedAccName).map((manager) => ({ label: manager, value: manager })),
     [items, selectedAccName]
   )
+  const objectOptions: FacetedFilterOption[] = useMemo(
+    () => getObjectOptions(items, selectedAccName || undefined).map((title) => ({ label: title, value: title })),
+    [items, selectedAccName]
+  )
+  const vidRaschetOptions: FacetedFilterOption[] = useMemo(
+    () => getVidRaschetOptions(items, selectedAccName || undefined)
+      .map((v) => ({ label: v || "Без вида расчёта", value: v })),
+    [items, selectedAccName]
+  )
+  // Опции для вкладки «По контрагенту» — без привязки к счёту.
+  const objectOptionsAll: FacetedFilterOption[] = useMemo(
+    () => getObjectOptions(items).map((title) => ({ label: title, value: title })),
+    [items]
+  )
+  const vidRaschetOptionsAll: FacetedFilterOption[] = useMemo(
+    () => getVidRaschetOptions(items).map((v) => ({ label: v || "Без вида расчёта", value: v })),
+    [items]
+  )
   // Итоги по валютам считаются только от выбранного счёта — фильтры менеджера и
   // поисковик по контрагенту их не сужают.
   const totalCurrencies = useMemo(
     () => getCurrenciesForAccName(items, selectedAccName),
     [items, selectedAccName]
+  )
+
+  // Детализация по контрагенту — всегда по полной картине (все счета, объекты), без учёта
+  // активных фильтров страницы.
+  const detailTotals = useMemo(
+    () => (detailKontr ? getKontrCurrencyTotals(items, detailKontr) : []),
+    [items, detailKontr]
+  )
+  const detailRecords = useMemo(
+    () => (detailKontr ? flattenDebts(items).filter((d) => d.kontr === detailKontr) : []),
+    [items, detailKontr]
   )
 
   // acc_name — обязательный фильтр на вкладке «По счетам»: пока счёт не выбран, данные не
@@ -193,7 +330,9 @@ export function CounterpartiesPage() {
         ...group,
         debts: group.debts.filter((d) =>
           d.acc_name === selectedAccName &&
-          (selectedManagers.length === 0 || selectedManagers.includes(d.manager))
+          (selectedManagers.length === 0 || selectedManagers.includes(d.manager)) &&
+          (selectedObjects.length === 0 || selectedObjects.includes(group.object_title)) &&
+          (selectedVidRaschet.length === 0 || selectedVidRaschet.includes(d.vid_raschet))
         ),
       }))
       .filter((group) => group.debts.length > 0)
@@ -209,8 +348,18 @@ export function CounterpartiesPage() {
     ? allKontrGroups.filter((g) => g.kontr.toLowerCase().includes(normalizedSearch))
     : allKontrGroups
 
-  // «По контрагенту» — без выбора счёта вообще, сразу все контрагенты по всем объектам и счетам.
-  const everyKontrGroup = groupByKontr(flattenDebts(items))
+  // «По контрагенту» — без выбора счёта вообще, сразу все контрагенты по всем объектам и счетам,
+  // но фильтры по объекту и виду расчёта применяются точно так же, как на вкладке «По счетам».
+  const allFilteredItems = items
+    .map((group) => ({
+      ...group,
+      debts: group.debts.filter((d) =>
+        (selectedObjects.length === 0 || selectedObjects.includes(group.object_title)) &&
+        (selectedVidRaschet.length === 0 || selectedVidRaschet.includes(d.vid_raschet))
+      ),
+    }))
+    .filter((group) => group.debts.length > 0)
+  const everyKontrGroup = groupByKontr(flattenDebts(allFilteredItems))
   const everyKontrGroupFiltered = normalizedSearch
     ? everyKontrGroup.filter((g) => g.kontr.toLowerCase().includes(normalizedSearch))
     : everyKontrGroup
@@ -257,12 +406,79 @@ export function CounterpartiesPage() {
     </Button>
   )
 
+  // Экспорт — то, что реально показано на экране с учётом активных фильтров (в т.ч. поиска),
+  // а не вся выгрузка целиком. Динамический import — xlsx довольно тяжёлая библиотека, незачем
+  // тянуть её в основной бандл всем, кто не пользуется экспортом.
+  const handleExportByAccount = async () => {
+    if (kontrGroups.length === 0) return
+    const { exportToExcel } = await import("@/lib/excel-export")
+    exportToExcel(
+      `Контрагенты — ${sanitizeFilename(selectedAccName)} — ${todayForFilename()}.xlsx`,
+      [{ name: "Контрагенты", rows: buildByAccountExportRows(kontrGroups) }]
+    )
+  }
+
+  const handleExportByKontr = async () => {
+    if (everyKontrGroupFiltered.length === 0) return
+    const { exportToExcel } = await import("@/lib/excel-export")
+    exportToExcel(
+      `Контрагенты — ${todayForFilename()}.xlsx`,
+      [{ name: "Контрагенты", rows: buildByKontrExportRows(everyKontrGroupFiltered) }]
+    )
+  }
+
+  const handleExportDetail = async () => {
+    if (!detailKontr) return
+    const totalsRows: (string | number)[][] = [["Валюта", "Долг контрагента", "Наш долг", "Итого"]]
+    for (const t of detailTotals) totalsRows.push([t.currency, t.theirDebt, t.ourDebt, t.net])
+
+    const recordsRows: (string | number)[][] = [["Счёт", "Объект", "Договор", "Менеджер", "Вид расчёта", "Валюта", "Долг"]]
+    for (const r of detailRecords) recordsRows.push([r.acc_name, r.object_title, r.contract, r.manager, r.vid_raschet, r.currency, r.debt])
+
+    const { exportToExcel } = await import("@/lib/excel-export")
+    exportToExcel(
+      `${sanitizeFilename(detailKontr)} — ${todayForFilename()}.xlsx`,
+      [
+        { name: "Итоги", rows: totalsRows },
+        { name: "Детализация", rows: recordsRows },
+      ]
+    )
+  }
+
   return (
     <>
       <div className="flex flex-col gap-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Контрагенты</h2>
-          <p className="text-muted-foreground">Задолженности по счетам и контрагентам</p>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">Контрагенты</h2>
+            <p className="text-muted-foreground">Задолженности по счетам и контрагентам</p>
+          </div>
+          {(() => {
+            const isByAccount = view === "by_account"
+            const noAccName = isByAccount && !hasAccNameSelected
+            const noData = isByAccount ? kontrGroups.length === 0 : everyKontrGroupFiltered.length === 0
+            const exportButton = (
+              <Button
+                variant="outline"
+                size="lg"
+                className="gap-1.5"
+                onClick={isByAccount ? handleExportByAccount : handleExportByKontr}
+                disabled={noAccName || noData}
+              >
+                Экспорт
+                <Download className="size-4" />
+              </Button>
+            )
+            if (!noAccName) return exportButton
+            return (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span tabIndex={0} className="inline-flex">{exportButton}</span>
+                </TooltipTrigger>
+                <TooltipContent>Сначала выберите счёт</TooltipContent>
+              </Tooltip>
+            )
+          })()}
         </div>
 
         <Tabs value={view} onValueChange={setView}>
@@ -318,6 +534,26 @@ export function CounterpartiesPage() {
                 disabledTooltip="Сначала выберите счёт"
               />
             )}
+            {(!hasAccNameSelected || objectOptions.length > 1) && (
+              <DataTableFacetedFilter
+                title="Объект"
+                options={objectOptions}
+                selected={selectedObjects}
+                onChange={setObjects}
+                disabled={!hasAccNameSelected}
+                disabledTooltip="Сначала выберите счёт"
+              />
+            )}
+            {(!hasAccNameSelected || vidRaschetOptions.length > 1) && (
+              <DataTableFacetedFilter
+                title="Вид расчёта"
+                options={vidRaschetOptions}
+                selected={selectedVidRaschet}
+                onChange={setVidRaschet}
+                disabled={!hasAccNameSelected}
+                disabledTooltip="Сначала выберите счёт"
+              />
+            )}
             {hasAccNameSelected ? refreshButton : (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -338,6 +574,22 @@ export function CounterpartiesPage() {
               onChange={(e) => setSearchInput(e.target.value)}
               className="h-9 w-[220px]"
             />
+            {objectOptionsAll.length > 1 && (
+              <DataTableFacetedFilter
+                title="Объект"
+                options={objectOptionsAll}
+                selected={selectedObjects}
+                onChange={setObjects}
+              />
+            )}
+            {vidRaschetOptionsAll.length > 1 && (
+              <DataTableFacetedFilter
+                title="Вид расчёта"
+                options={vidRaschetOptionsAll}
+                selected={selectedVidRaschet}
+                onChange={setVidRaschet}
+              />
+            )}
             {refreshButton}
           </div>
         )}
@@ -428,6 +680,16 @@ export function CounterpartiesPage() {
                               <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
                             )}
                             <span className="truncate" title={group.kontr}>{group.kontr}</span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="ml-auto size-6 shrink-0"
+                              onClick={(e) => { e.stopPropagation(); setDetailKontr(group.kontr) }}
+                              aria-label="Детализация"
+                              title="Детализация"
+                            >
+                              <Eye className="size-3.5" />
+                            </Button>
                           </div>
                         </TableCell>
                         <TableCell />
@@ -490,6 +752,16 @@ export function CounterpartiesPage() {
                             <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
                           )}
                           <span className="truncate" title={group.kontr}>{group.kontr}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="ml-auto size-6 shrink-0"
+                            onClick={(e) => { e.stopPropagation(); setDetailKontr(group.kontr) }}
+                            aria-label="Детализация"
+                            title="Детализация"
+                          >
+                            <Eye className="size-3.5" />
+                          </Button>
                         </div>
                       </TableCell>
                       <TableCell />
@@ -521,6 +793,87 @@ export function CounterpartiesPage() {
           </Table>
         </div>
       )}
+
+      <Dialog open={detailKontr !== null} onOpenChange={(open) => !open && setDetailKontr(null)}>
+        <DialogContent className="w-[calc(100%-2rem)] sm:!max-w-5xl max-h-[85vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="shrink-0 px-6 pt-6 pb-4 border-b flex-row items-start justify-between gap-4">
+            <div className="min-w-0">
+              <DialogTitle className="truncate" title={detailKontr ?? ""}>{detailKontr}</DialogTitle>
+              <DialogDescription>
+                Детализация по контрагенту — по всем счетам и объектам, без учёта фильтров страницы
+              </DialogDescription>
+            </div>
+            <Button variant="outline" size="sm" className="mr-6 shrink-0 gap-1.5" onClick={handleExportDetail}>
+              <Download className="size-4" />
+              Экспорт
+            </Button>
+          </DialogHeader>
+
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 space-y-5">
+            {detailTotals.length > 0 && (
+              <div className="rounded-md border">
+                <Table className="table-fixed">
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="h-9 w-[80px]">Валюта</TableHead>
+                      <TableHead className="h-9 text-right">Долг контрагента</TableHead>
+                      <TableHead className="h-9 text-right">Наш долг</TableHead>
+                      <TableHead className="h-9 text-right">Итого</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {detailTotals.map((t) => (
+                      <TableRow key={t.currency} className="hover:bg-transparent">
+                        <TableCell className="py-2 font-medium">{t.currency}</TableCell>
+                        <TableCell className="py-2 text-right tabular-nums text-green-600">
+                          {formatAmount(t.theirDebt)}
+                        </TableCell>
+                        <TableCell className="py-2 text-right tabular-nums text-red-600">
+                          {formatAmount(t.ourDebt)}
+                        </TableCell>
+                        <TableCell className={`py-2 text-right tabular-nums font-medium ${t.net < 0 ? "text-red-600" : ""}`}>
+                          {formatAmount(t.net)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+
+            <div className="rounded-md border">
+              <Table className="table-fixed">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[140px]">Счёт</TableHead>
+                    <TableHead className="w-[140px]">Объект</TableHead>
+                    <TableHead className="w-[140px]">Договор</TableHead>
+                    <TableHead className="w-[110px]">Менеджер</TableHead>
+                    <TableHead className="w-[110px]">Вид расчёта</TableHead>
+                    <TableHead className="w-[70px]">Валюта</TableHead>
+                    <TableHead className="text-right w-[110px]">Долг</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {detailRecords.map((r, i) => (
+                    <TableRow key={i} className="hover:bg-transparent">
+                      <TableCell className="text-sm truncate" title={r.acc_name}>{r.acc_name}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground truncate" title={r.object_title}>{r.object_title}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground truncate" title={r.contract}>{r.contract}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground truncate" title={r.manager}>{r.manager}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground truncate" title={r.vid_raschet}>{r.vid_raschet}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{r.currency}</TableCell>
+                      <TableCell className={`text-sm text-right tabular-nums ${r.debt < 0 ? "text-red-600" : ""}`}>
+                        {formatAmount(r.debt)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

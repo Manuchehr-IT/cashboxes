@@ -88,7 +88,7 @@ export function DataTableFacetedFilter({
       ) : (
         <PopoverTrigger asChild>{trigger}</PopoverTrigger>
       )}
-      <PopoverContent className="w-52 p-1" align="start">
+      <PopoverContent className="w-64 p-1" align="start">
         <div className="flex flex-col">
           {options.map((option) => {
             const isSelected = selectedSet.has(option.value)
@@ -97,11 +97,12 @@ export function DataTableFacetedFilter({
                 key={option.value}
                 type="button"
                 onClick={() => toggle(option.value)}
+                title={option.label}
                 className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
               >
                 <div
                   className={cn(
-                    "flex size-4 items-center justify-center rounded-sm border border-primary",
+                    "flex size-4 shrink-0 items-center justify-center rounded-sm border border-primary",
                     isSelected
                       ? "bg-primary text-primary-foreground"
                       : "opacity-50 [&_svg]:invisible",
@@ -110,9 +111,9 @@ export function DataTableFacetedFilter({
                   <Check className="size-3.5" />
                 </div>
                 {option.icon && (
-                  <option.icon className="size-4 text-muted-foreground" />
+                  <option.icon className="size-4 shrink-0 text-muted-foreground" />
                 )}
-                <span>{option.label}</span>
+                <span className="min-w-0 truncate">{option.label}</span>
               </button>
             )
           })}
