@@ -6,17 +6,17 @@ import { ChevronDown, ChevronRight, Download, Eye, RefreshCw, TriangleAlert } fr
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { DataTableFacetedFilter, type FacetedFilterOption } from "@/components/data-table/data-table-faceted-filter"
+import { SearchableSelect } from "@/components/searchable-select"
 import { getErrorMessage } from "@/lib/api-error"
 import { counterpartiesApi } from "@/pages/reports/counterparties/api/counterparties"
 import type { Debt, ObjectDebts } from "@/pages/reports/counterparties/types"
 
-type View = "by_account" | "by_kontr"
+type View = "by_account" | "by_manager" | "by_kontr"
 
 function formatAmount(value: number): string {
   return value.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -54,24 +54,35 @@ function getManagersForAccName(items: ObjectDebts[], accName: string): string[] 
   return Array.from(set).sort()
 }
 
-/** Объекты, реально встречающиеся в данных — если accName задан, только для этого счёта. */
-function getObjectOptions(items: ObjectDebts[], accName?: string): string[] {
+/** Все менеджеры, встречающиеся в данных — для выбора менеджера на вкладке «По менеджерам». */
+function getAllManagers(items: ObjectDebts[]): string[] {
   const set = new Set<string>()
   for (const group of items) {
     for (const d of group.debts) {
-      if (accName && d.acc_name !== accName) continue
+      if (d.manager) set.add(d.manager)
+    }
+  }
+  return Array.from(set).sort()
+}
+
+/** Объекты, реально встречающиеся в данных — filterFn сужает до нужного среза (счёт/менеджер). */
+function getObjectOptions(items: ObjectDebts[], filterFn?: (d: Debt) => boolean): string[] {
+  const set = new Set<string>()
+  for (const group of items) {
+    for (const d of group.debts) {
+      if (filterFn && !filterFn(d)) continue
       set.add(group.object_title)
     }
   }
   return Array.from(set).sort()
 }
 
-/** Виды расчёта, реально встречающиеся в данных — если accName задан, только для этого счёта. */
-function getVidRaschetOptions(items: ObjectDebts[], accName?: string): string[] {
+/** Виды расчёта, реально встречающиеся в данных — filterFn сужает до нужного среза (счёт/менеджер). */
+function getVidRaschetOptions(items: ObjectDebts[], filterFn?: (d: Debt) => boolean): string[] {
   const set = new Set<string>()
   for (const group of items) {
     for (const d of group.debts) {
-      if (accName && d.acc_name !== accName) continue
+      if (filterFn && !filterFn(d)) continue
       set.add(d.vid_raschet)
     }
   }
@@ -102,22 +113,22 @@ function groupByKontr(debts: DebtWithObject[]): KontrGroup[] {
     .sort((a, b) => a.kontr.localeCompare(b.kontr, "ru"))
 }
 
-/** Валюты, встречающиеся у выбранного счёта — без учёта фильтров менеджера/поиска: итоги по валютам
- * от них не зависят. */
-function getCurrenciesForAccName(items: ObjectDebts[], accName: string): string[] {
+/** Валюты, встречающиеся среди записей, удовлетворяющих filterFn (например, у выбранного счёта
+ * или менеджера) — без учёта остальных фильтров/поиска: итоги по валютам от них не зависят. */
+function getCurrenciesFor(items: ObjectDebts[], filterFn: (d: Debt) => boolean): string[] {
   const set = new Set<string>()
   for (const group of items) {
     for (const d of group.debts) {
-      if (d.acc_name === accName) set.add(d.currency)
+      if (filterFn(d)) set.add(d.currency)
     }
   }
   return Array.from(set).sort()
 }
 
-function sumDebtByCurrency(items: ObjectDebts[], accName: string, currency: string): number {
+function sumDebtFor(items: ObjectDebts[], filterFn: (d: Debt) => boolean, currency: string): number {
   return items.reduce(
     (sum, group) =>
-      sum + group.debts.reduce((s, d) => (d.acc_name === accName && d.currency === currency ? s + d.debt : s), 0),
+      sum + group.debts.reduce((s, d) => (filterFn(d) && d.currency === currency ? s + d.debt : s), 0),
     0
   )
 }
@@ -184,13 +195,27 @@ function buildByKontrExportRows(groups: KontrGroup[]): (string | number)[][] {
   return rows
 }
 
+/** Строки для экспорта «По менеджерам» — менеджер один и тот же для всех строк (выбран фильтром,
+ * колонкой не дублируем), но счёт указываем — у менеджера он может быть разным. */
+function buildByManagerExportRows(groups: KontrGroup[]): (string | number)[][] {
+  const rows: (string | number)[][] = [["Контрагент", "Счёт", "Объект", "Договор", "Вид расчёта", "Валюта", "Долг"]]
+  for (const group of groups) {
+    for (const r of group.records) {
+      rows.push([group.kontr, r.acc_name, r.object_title, r.contract, r.vid_raschet, r.currency, r.debt])
+    }
+  }
+  return rows
+}
+
 export function CounterpartiesPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [expandedKontrs, setExpandedKontrs] = useState<Set<string>>(new Set())
   const [detailKontr, setDetailKontr] = useState<string | null>(null)
 
-  const view: View = searchParams.get("view") === "by_kontr" ? "by_kontr" : "by_account"
+  const viewParam = searchParams.get("view")
+  const view: View = viewParam === "by_kontr" ? "by_kontr" : viewParam === "by_manager" ? "by_manager" : "by_account"
   const selectedAccName = searchParams.get("acc_name") ?? ""
+  const selectedManagerName = searchParams.get("manager_name") ?? ""
   const selectedManagers = searchParams.getAll("manager")
   const selectedObjects = searchParams.getAll("object")
   const selectedVidRaschet = searchParams.getAll("vid_raschet")
@@ -208,7 +233,7 @@ export function CounterpartiesPage() {
   const setView = (value: string) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
-      if (value === "by_kontr") next.set("view", value)
+      if (value === "by_kontr" || value === "by_manager") next.set("view", value)
       else next.delete("view")
       return next
     }, { replace: true })
@@ -219,6 +244,15 @@ export function CounterpartiesPage() {
       const next = new URLSearchParams(prev)
       if (value) next.set("acc_name", value)
       else next.delete("acc_name")
+      return next
+    }, { replace: true })
+  }
+
+  const setManagerName = (value: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (value) next.set("manager_name", value)
+      else next.delete("manager_name")
       return next
     }, { replace: true })
   }
@@ -281,18 +315,31 @@ export function CounterpartiesPage() {
   const failedObjects = query.data?.failed_objects ?? []
 
   const accNameOptions = useMemo(() => getAccNames(items), [items])
+  const managerNameOptions = useMemo(() => getAllManagers(items), [items])
   const managerOptions: FacetedFilterOption[] = useMemo(
     () => getManagersForAccName(items, selectedAccName).map((manager) => ({ label: manager, value: manager })),
     [items, selectedAccName]
   )
   const objectOptions: FacetedFilterOption[] = useMemo(
-    () => getObjectOptions(items, selectedAccName || undefined).map((title) => ({ label: title, value: title })),
+    () => getObjectOptions(items, selectedAccName ? (d) => d.acc_name === selectedAccName : undefined)
+      .map((title) => ({ label: title, value: title })),
     [items, selectedAccName]
   )
   const vidRaschetOptions: FacetedFilterOption[] = useMemo(
-    () => getVidRaschetOptions(items, selectedAccName || undefined)
+    () => getVidRaschetOptions(items, selectedAccName ? (d) => d.acc_name === selectedAccName : undefined)
       .map((v) => ({ label: v || "Без вида расчёта", value: v })),
     [items, selectedAccName]
+  )
+  // Те же фильтры, но для вкладки «По менеджерам» — сужены по выбранному менеджеру, а не счёту.
+  const objectOptionsForManager: FacetedFilterOption[] = useMemo(
+    () => getObjectOptions(items, selectedManagerName ? (d) => d.manager === selectedManagerName : undefined)
+      .map((title) => ({ label: title, value: title })),
+    [items, selectedManagerName]
+  )
+  const vidRaschetOptionsForManager: FacetedFilterOption[] = useMemo(
+    () => getVidRaschetOptions(items, selectedManagerName ? (d) => d.manager === selectedManagerName : undefined)
+      .map((v) => ({ label: v || "Без вида расчёта", value: v })),
+    [items, selectedManagerName]
   )
   // Опции для вкладки «По контрагенту» — без привязки к счёту.
   const objectOptionsAll: FacetedFilterOption[] = useMemo(
@@ -303,11 +350,15 @@ export function CounterpartiesPage() {
     () => getVidRaschetOptions(items).map((v) => ({ label: v || "Без вида расчёта", value: v })),
     [items]
   )
-  // Итоги по валютам считаются только от выбранного счёта — фильтры менеджера и
+  // Итоги по валютам считаются только от выбранного счёта/менеджера — прочие фильтры и
   // поисковик по контрагенту их не сужают.
   const totalCurrencies = useMemo(
-    () => getCurrenciesForAccName(items, selectedAccName),
+    () => getCurrenciesFor(items, (d) => d.acc_name === selectedAccName),
     [items, selectedAccName]
+  )
+  const managerTotalCurrencies = useMemo(
+    () => getCurrenciesFor(items, (d) => d.manager === selectedManagerName),
+    [items, selectedManagerName]
   )
 
   // Детализация по контрагенту — всегда по полной картине (все счета, объекты), без учёта
@@ -338,6 +389,22 @@ export function CounterpartiesPage() {
       .filter((group) => group.debts.length > 0)
     : []
 
+  // manager_name — обязательный фильтр на вкладке «По менеджерам», аналогично acc_name на
+  // «По счетам»: пока менеджер не выбран, данные не показываем вообще.
+  const hasManagerSelected = !!selectedManagerName
+  const managerFilteredItems = hasManagerSelected
+    ? items
+      .map((group) => ({
+        ...group,
+        debts: group.debts.filter((d) =>
+          d.manager === selectedManagerName &&
+          (selectedObjects.length === 0 || selectedObjects.includes(group.object_title)) &&
+          (selectedVidRaschet.length === 0 || selectedVidRaschet.includes(d.vid_raschet))
+        ),
+      }))
+      .filter((group) => group.debts.length > 0)
+    : []
+
   const normalizedSearch = kontrSearch.trim().toLowerCase()
 
   // Без группировки по объекту — один контрагент может встречаться в нескольких объектах,
@@ -347,6 +414,11 @@ export function CounterpartiesPage() {
   const kontrGroups = normalizedSearch
     ? allKontrGroups.filter((g) => g.kontr.toLowerCase().includes(normalizedSearch))
     : allKontrGroups
+
+  const allManagerKontrGroups = groupByKontr(flattenDebts(managerFilteredItems))
+  const managerKontrGroups = normalizedSearch
+    ? allManagerKontrGroups.filter((g) => g.kontr.toLowerCase().includes(normalizedSearch))
+    : allManagerKontrGroups
 
   // «По контрагенту» — без выбора счёта вообще, сразу все контрагенты по всем объектам и счетам,
   // но фильтры по объекту и виду расчёта применяются точно так же, как на вкладке «По счетам».
@@ -365,24 +437,35 @@ export function CounterpartiesPage() {
     : everyKontrGroup
 
   // Тост не привязан к самому запросу (при переключении счёта/менеджера новый запрос не идёт —
-  // фильтрация целиком на фронте): показываем его только при реальной смене счёта и по клику
-  // «Обновить», но не при первом открытии страницы, пока счёт ещё не выбран.
+  // фильтрация целиком на фронте): показываем его только при реальной смене счёта/менеджера и
+  // по клику «Обновить», но не при первом открытии страницы, пока ничего ещё не выбрано.
   const lastToastedAccName = useRef<string | null>(null)
+  const lastToastedManagerName = useRef<string | null>(null)
   useEffect(() => {
-    if (view !== "by_account") return
-    if (!selectedAccName) return
-    if (lastToastedAccName.current === selectedAccName) return
-    lastToastedAccName.current = selectedAccName
-    const count = countDebts(filteredItems)
-    toast.success(`Показано ${count} ${pluralizeRecords(count)}`)
+    if (view === "by_account") {
+      if (!selectedAccName) return
+      if (lastToastedAccName.current === selectedAccName) return
+      lastToastedAccName.current = selectedAccName
+      const count = countDebts(filteredItems)
+      toast.success(`Показано ${count} ${pluralizeRecords(count)}`)
+    } else if (view === "by_manager") {
+      if (!selectedManagerName) return
+      if (lastToastedManagerName.current === selectedManagerName) return
+      lastToastedManagerName.current = selectedManagerName
+      const count = countDebts(managerFilteredItems)
+      toast.success(`Показано ${count} ${pluralizeRecords(count)}`)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, selectedAccName])
+  }, [view, selectedAccName, selectedManagerName])
 
   const handleRefresh = async () => {
     try {
       await query.refetch({ throwOnError: true })
       if (view === "by_account" && hasAccNameSelected) {
         const count = countDebts(filteredItems)
+        toast.success(`Показано ${count} ${pluralizeRecords(count)}`)
+      } else if (view === "by_manager" && hasManagerSelected) {
+        const count = countDebts(managerFilteredItems)
         toast.success(`Показано ${count} ${pluralizeRecords(count)}`)
       } else if (view === "by_kontr") {
         const count = countDebts(items)
@@ -393,7 +476,9 @@ export function CounterpartiesPage() {
     }
   }
 
-  const refreshDisabled = query.isFetching || (view === "by_account" && !hasAccNameSelected)
+  const refreshDisabled = query.isFetching
+    || (view === "by_account" && !hasAccNameSelected)
+    || (view === "by_manager" && !hasManagerSelected)
   const refreshButton = (
     <Button
       variant="outline"
@@ -427,6 +512,22 @@ export function CounterpartiesPage() {
     )
   }
 
+  const handleExportByManager = async () => {
+    if (managerKontrGroups.length === 0) return
+    const totalsRows: (string | number)[][] = [["Валюта", "Долг"]]
+    for (const currency of managerTotalCurrencies) {
+      totalsRows.push([currency, sumDebtFor(items, (d) => d.manager === selectedManagerName, currency)])
+    }
+    const { exportToExcel } = await import("@/lib/excel-export")
+    exportToExcel(
+      `Контрагенты — ${sanitizeFilename(selectedManagerName)} — ${todayForFilename()}.xlsx`,
+      [
+        { name: "Итоги", rows: totalsRows },
+        { name: "Контрагенты", rows: buildByManagerExportRows(managerKontrGroups) },
+      ]
+    )
+  }
+
   const handleExportDetail = async () => {
     if (!detailKontr) return
     const totalsRows: (string | number)[][] = [["Валюта", "Долг контрагента", "Наш долг", "Итого"]]
@@ -454,28 +555,35 @@ export function CounterpartiesPage() {
             <p className="text-muted-foreground">Задолженности по счетам и контрагентам</p>
           </div>
           {(() => {
-            const isByAccount = view === "by_account"
-            const noAccName = isByAccount && !hasAccNameSelected
-            const noData = isByAccount ? kontrGroups.length === 0 : everyKontrGroupFiltered.length === 0
+            const requiresSelection = view === "by_account" ? !hasAccNameSelected
+              : view === "by_manager" ? !hasManagerSelected
+              : false
+            const noData = view === "by_account" ? kontrGroups.length === 0
+              : view === "by_manager" ? managerKontrGroups.length === 0
+              : everyKontrGroupFiltered.length === 0
+            const handleExport = view === "by_account" ? handleExportByAccount
+              : view === "by_manager" ? handleExportByManager
+              : handleExportByKontr
+            const tooltipText = view === "by_account" ? "Сначала выберите счёт" : "Сначала выберите менеджера"
             const exportButton = (
               <Button
                 variant="outline"
                 size="lg"
                 className="gap-1.5"
-                onClick={isByAccount ? handleExportByAccount : handleExportByKontr}
-                disabled={noAccName || noData}
+                onClick={handleExport}
+                disabled={requiresSelection || noData}
               >
                 Экспорт
                 <Download className="size-4" />
               </Button>
             )
-            if (!noAccName) return exportButton
+            if (!requiresSelection) return exportButton
             return (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span tabIndex={0} className="inline-flex">{exportButton}</span>
                 </TooltipTrigger>
-                <TooltipContent>Сначала выберите счёт</TooltipContent>
+                <TooltipContent>{tooltipText}</TooltipContent>
               </Tooltip>
             )
           })()}
@@ -484,24 +592,21 @@ export function CounterpartiesPage() {
         <Tabs value={view} onValueChange={setView}>
           <TabsList>
             <TabsTrigger value="by_account">По счетам</TabsTrigger>
+            <TabsTrigger value="by_manager">По менеджерам</TabsTrigger>
             <TabsTrigger value="by_kontr">По контрагенту</TabsTrigger>
           </TabsList>
         </Tabs>
 
         {view === "by_account" ? (
           <div className="flex items-center gap-3 flex-wrap">
-            {/* key сбрасывает внутреннее состояние Select при возврате selectedAccName к "" —
-                иначе Radix Select продолжает показывать последнее значение вместо плейсхолдера. */}
-            <Select key={selectedAccName} value={selectedAccName || undefined} onValueChange={setAccName}>
-              <SelectTrigger className="w-[280px]">
-                <SelectValue placeholder="Выберите счёт" />
-              </SelectTrigger>
-              <SelectContent position="popper" align="start">
-                {accNameOptions.map((accName) => (
-                  <SelectItem key={accName} value={accName}>{accName}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              options={accNameOptions}
+              value={selectedAccName}
+              onChange={setAccName}
+              placeholder="Выберите счёт"
+              searchPlaceholder="Поиск по счетам..."
+              className="w-[280px]"
+            />
             {(() => {
               const searchInputEl = (
                 <Input
@@ -566,6 +671,69 @@ export function CounterpartiesPage() {
               </Tooltip>
             )}
           </div>
+        ) : view === "by_manager" ? (
+          <div className="flex items-center gap-3 flex-wrap">
+            <SearchableSelect
+              options={managerNameOptions}
+              value={selectedManagerName}
+              onChange={setManagerName}
+              placeholder="Выберите менеджера"
+              searchPlaceholder="Поиск по менеджерам..."
+              className="w-[220px]"
+            />
+            {(() => {
+              const searchInputEl = (
+                <Input
+                  placeholder="Поиск по контрагенту..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  disabled={!hasManagerSelected}
+                  className="h-9 w-[220px]"
+                />
+              )
+              if (hasManagerSelected) return searchInputEl
+              return (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span tabIndex={0} className="inline-flex">
+                      {searchInputEl}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>Сначала выберите менеджера</TooltipContent>
+                </Tooltip>
+              )
+            })()}
+            {(!hasManagerSelected || objectOptionsForManager.length > 1) && (
+              <DataTableFacetedFilter
+                title="Объект"
+                options={objectOptionsForManager}
+                selected={selectedObjects}
+                onChange={setObjects}
+                disabled={!hasManagerSelected}
+                disabledTooltip="Сначала выберите менеджера"
+              />
+            )}
+            {(!hasManagerSelected || vidRaschetOptionsForManager.length > 1) && (
+              <DataTableFacetedFilter
+                title="Вид расчёта"
+                options={vidRaschetOptionsForManager}
+                selected={selectedVidRaschet}
+                onChange={setVidRaschet}
+                disabled={!hasManagerSelected}
+                disabledTooltip="Сначала выберите менеджера"
+              />
+            )}
+            {hasManagerSelected ? refreshButton : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span tabIndex={0} className="inline-flex">
+                    {refreshButton}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>Сначала выберите менеджера</TooltipContent>
+              </Tooltip>
+            )}
+          </div>
         ) : (
           <div className="flex items-center gap-3 flex-wrap">
             <Input
@@ -615,7 +783,36 @@ export function CounterpartiesPage() {
               </TableHeader>
               <TableBody>
                 {totalCurrencies.map((currency) => {
-                  const total = sumDebtByCurrency(items, selectedAccName, currency)
+                  const total = sumDebtFor(items, (d) => d.acc_name === selectedAccName, currency)
+                  return (
+                    <TableRow key={currency} className="hover:bg-transparent">
+                      <TableCell className="py-1.5 font-medium">{currency}</TableCell>
+                      <TableCell className={`py-1.5 text-right tabular-nums font-medium ${total < 0 ? "text-red-600" : ""}`}>
+                        {formatAmount(total)}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
+
+      {view === "by_manager" && hasManagerSelected && managerTotalCurrencies.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <h3 className="text-sm font-medium text-muted-foreground">Итого</h3>
+          <div className="rounded-md border">
+            <Table className="table-fixed">
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="h-8 w-[80px]">Валюта</TableHead>
+                  <TableHead className="h-8 text-right w-[130px]">Долг</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {managerTotalCurrencies.map((currency) => {
+                  const total = sumDebtFor(items, (d) => d.manager === selectedManagerName, currency)
                   return (
                     <TableRow key={currency} className="hover:bg-transparent">
                       <TableCell className="py-1.5 font-medium">{currency}</TableCell>
@@ -705,6 +902,82 @@ export function CounterpartiesPage() {
                           <TableCell className="text-sm text-muted-foreground truncate" title={r.object_title}>{r.object_title}</TableCell>
                           <TableCell className="text-sm text-muted-foreground truncate" title={r.contract}>{r.contract}</TableCell>
                           <TableCell className="text-sm text-muted-foreground truncate" title={r.manager}>{r.manager}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground truncate" title={r.vid_raschet}>{r.vid_raschet}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{r.currency}</TableCell>
+                          <TableCell className={`text-sm text-right tabular-nums ${r.debt < 0 ? "text-red-600" : ""}`}>
+                            {formatAmount(r.debt)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </Fragment>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )
+      ) : view === "by_manager" ? (
+        !hasManagerSelected ? (
+          <div className="flex items-center justify-center py-16 text-muted-foreground">
+            Выберите менеджера, чтобы увидеть данные
+          </div>
+        ) : managerKontrGroups.length === 0 ? (
+          <div className="flex items-center justify-center py-16 text-muted-foreground">
+            Нет данных по выбранным фильтрам
+          </div>
+        ) : (
+          <div className="rounded-md border">
+            <Table className="table-fixed">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[240px]">Контрагент</TableHead>
+                  <TableHead className="w-[160px]">Счёт</TableHead>
+                  <TableHead className="w-[200px]">Объект</TableHead>
+                  <TableHead className="w-[200px]">Договор</TableHead>
+                  <TableHead className="w-[130px]">Вид расчёта</TableHead>
+                  <TableHead className="w-[80px]">Валюта</TableHead>
+                  <TableHead className="text-right w-[130px]">Долг</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {managerKontrGroups.map((group) => {
+                  const isExpanded = expandedKontrs.has(group.kontr)
+                  return (
+                    <Fragment key={group.kontr}>
+                      <TableRow className="cursor-pointer" onClick={() => toggleKontr(group.kontr)}>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-1.5">
+                            {isExpanded ? (
+                              <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+                            ) : (
+                              <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                            )}
+                            <span className="truncate" title={group.kontr}>{group.kontr}</span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="ml-auto size-6 shrink-0"
+                              onClick={(e) => { e.stopPropagation(); setDetailKontr(group.kontr) }}
+                              aria-label="Детализация"
+                              title="Детализация"
+                            >
+                              <Eye className="size-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                        <TableCell />
+                        <TableCell />
+                        <TableCell />
+                        <TableCell />
+                        <TableCell />
+                        <TableCell />
+                      </TableRow>
+                      {isExpanded && group.records.map((r, i) => (
+                        <TableRow key={i} className="bg-muted/30 hover:bg-muted/30">
+                          <TableCell />
+                          <TableCell className="text-sm text-muted-foreground truncate" title={r.acc_name}>{r.acc_name}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground truncate" title={r.object_title}>{r.object_title}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground truncate" title={r.contract}>{r.contract}</TableCell>
                           <TableCell className="text-sm text-muted-foreground truncate" title={r.vid_raschet}>{r.vid_raschet}</TableCell>
                           <TableCell className="text-sm text-muted-foreground">{r.currency}</TableCell>
                           <TableCell className={`text-sm text-right tabular-nums ${r.debt < 0 ? "text-red-600" : ""}`}>
