@@ -1,8 +1,14 @@
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from types import TracebackType
 from typing import Self
 
-from src.infrastructure.database.repositories import ObjectRepository, UserRepository, UserObjectRepository
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from src.infrastructure.database.repositories import (
+	ObjectRepository,
+	OneCSettingsRepository,
+	UserObjectRepository,
+	UserRepository,
+)
 
 
 class UnitOfWork:
@@ -20,6 +26,7 @@ class UnitOfWork:
 		self.user = UserRepository(self._session)
 		self.obj = ObjectRepository(self._session)
 		self.user_object = UserObjectRepository(self._session)
+		self.onec_settings = OneCSettingsRepository(self._session)
 
 		return self
 

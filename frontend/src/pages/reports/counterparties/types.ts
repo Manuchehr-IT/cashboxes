@@ -7,6 +7,7 @@ export type Debt = {
   debt: number
   currency: string
   vid_raschet: string
+  phone: string
 }
 
 export type ObjectDebts = {

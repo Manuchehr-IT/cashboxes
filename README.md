@@ -111,7 +111,10 @@ docker compose -f docker-compose.lan.yml exec backend alembic upgrade head
 | `JWT__ACCESS_TOKEN_EXPIRE_MINUTES`, `JWT__REFRESH_TOKEN_EXPIRE_DAYS` | время жизни токенов |
 | `STORAGE__DIR` | директория для файлового хранилища |
 | `ADMIN_USERNAME`, `ADMIN_PASSWORD` | учётка первого админа (см. ниже) |
-| `ONEC__USERNAME`, `ONEC__PASSWORD` | Basic Auth для запросов к 1C |
+
+Basic Auth для запросов к 1C больше не задаётся через `.env` — хранится в БД (таблица
+`onec_settings`) и настраивается админом в UI на странице «Настройки». При миграции,
+добавившей эту таблицу, прежние `ONEC__USERNAME`/`ONEC__PASSWORD` переносятся в БД автоматически.
 
 ## Первый администратор
 

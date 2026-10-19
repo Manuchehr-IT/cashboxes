@@ -12,6 +12,7 @@ class DebtResponse(BaseModel):
 	debt: float
 	currency: str
 	vid_raschet: str
+	phone: str
 
 class ObjectDebtsResponse(BaseModel):
 	object_id: UUID

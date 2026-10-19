@@ -61,6 +61,7 @@ class ListCounterparties:
 							debt=d.debt,
 							currency=d.currency,
 							vid_raschet=d.vid_raschet,
+							phone=d.phone,
 						)
 						for d in result
 					],

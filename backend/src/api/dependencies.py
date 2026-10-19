@@ -20,9 +20,6 @@ security = HTTPBearer(auto_error=False)
 async def get_http_client(request: Request) -> HTTPClient:
 	return request.app.state.http_client
 
-async def get_onec_client(http_client: HTTPClient = Depends(get_http_client)) -> OneCClient:
-	return OneCClient(http_client, username=settings.onec.username, password=settings.onec.password)
-
 async def get_redis(request: Request) -> Redis:
 	return request.app.state.redis
 
@@ -36,6 +33,14 @@ async def get_uow(
 	session_factory: async_sessionmaker[AsyncSession] = Depends(get_session_factory)
 ) -> UnitOfWork:
 	return UnitOfWork(session_factory)
+
+async def get_onec_client(
+	http_client: HTTPClient = Depends(get_http_client),
+	uow: UnitOfWork = Depends(get_uow),
+) -> OneCClient:
+	async with uow:
+		credentials = await uow.onec_settings.get()
+	return OneCClient(http_client, username=credentials.username, password=credentials.password)
 
 async def get_jwt_service() -> JWTService:
 	return JWTService(

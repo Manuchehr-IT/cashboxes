@@ -97,6 +97,9 @@ function flattenDebts(items: ObjectDebts[]): DebtWithObject[] {
 
 interface KontrGroup {
   kontr: string
+  /** Телефон — атрибут самого контрагента, а не отдельной записи долга, поэтому один на группу
+   * (первый непустой среди записей, обычно он и так один и тот же у всех). */
+  phone: string
   records: DebtWithObject[]
 }
 
@@ -109,7 +112,11 @@ function groupByKontr(debts: DebtWithObject[]): KontrGroup[] {
     else map.set(d.kontr, [d])
   }
   return Array.from(map.entries())
-    .map(([kontr, records]) => ({ kontr, records }))
+    .map(([kontr, records]) => ({
+      kontr,
+      phone: records.find((r) => r.phone)?.phone ?? "",
+      records,
+    }))
     .sort((a, b) => a.kontr.localeCompare(b.kontr, "ru"))
 }
 
@@ -174,10 +181,10 @@ function todayForFilename(): string {
 /** Строки для экспорта «По счетам» — счёт один и тот же для всех строк (выбран фильтром),
  * отдельной колонкой не дублируем. */
 function buildByAccountExportRows(groups: KontrGroup[]): (string | number)[][] {
-  const rows: (string | number)[][] = [["Контрагент", "Объект", "Договор", "Менеджер", "Вид расчёта", "Валюта", "Долг"]]
+  const rows: (string | number)[][] = [["Контрагент", "Телефон", "Объект", "Договор", "Менеджер", "Вид расчёта", "Валюта", "Долг"]]
   for (const group of groups) {
     for (const r of group.records) {
-      rows.push([group.kontr, r.object_title, r.contract, r.manager, r.vid_raschet, r.currency, r.debt])
+      rows.push([group.kontr, group.phone, r.object_title, r.contract, r.manager, r.vid_raschet, r.currency, r.debt])
     }
   }
   return rows
@@ -186,10 +193,10 @@ function buildByAccountExportRows(groups: KontrGroup[]): (string | number)[][] {
 /** Строки для экспорта «По контрагенту» — один контрагент может встречаться на разных счетах,
  * поэтому счёт указываем в отдельной колонке. */
 function buildByKontrExportRows(groups: KontrGroup[]): (string | number)[][] {
-  const rows: (string | number)[][] = [["Контрагент", "Счёт", "Объект", "Договор", "Менеджер", "Вид расчёта", "Валюта", "Долг"]]
+  const rows: (string | number)[][] = [["Контрагент", "Телефон", "Счёт", "Объект", "Договор", "Менеджер", "Вид расчёта", "Валюта", "Долг"]]
   for (const group of groups) {
     for (const r of group.records) {
-      rows.push([group.kontr, r.acc_name, r.object_title, r.contract, r.manager, r.vid_raschet, r.currency, r.debt])
+      rows.push([group.kontr, group.phone, r.acc_name, r.object_title, r.contract, r.manager, r.vid_raschet, r.currency, r.debt])
     }
   }
   return rows
@@ -198,10 +205,10 @@ function buildByKontrExportRows(groups: KontrGroup[]): (string | number)[][] {
 /** Строки для экспорта «По менеджерам» — менеджер один и тот же для всех строк (выбран фильтром,
  * колонкой не дублируем), но счёт указываем — у менеджера он может быть разным. */
 function buildByManagerExportRows(groups: KontrGroup[]): (string | number)[][] {
-  const rows: (string | number)[][] = [["Контрагент", "Счёт", "Объект", "Договор", "Вид расчёта", "Валюта", "Долг"]]
+  const rows: (string | number)[][] = [["Контрагент", "Телефон", "Счёт", "Объект", "Договор", "Вид расчёта", "Валюта", "Долг"]]
   for (const group of groups) {
     for (const r of group.records) {
-      rows.push([group.kontr, r.acc_name, r.object_title, r.contract, r.vid_raschet, r.currency, r.debt])
+      rows.push([group.kontr, group.phone, r.acc_name, r.object_title, r.contract, r.vid_raschet, r.currency, r.debt])
     }
   }
   return rows
@@ -371,6 +378,7 @@ export function CounterpartiesPage() {
     () => (detailKontr ? flattenDebts(items).filter((d) => d.kontr === detailKontr) : []),
     [items, detailKontr]
   )
+  const detailPhone = detailRecords.find((r) => r.phone)?.phone ?? ""
 
   // acc_name — обязательный фильтр на вкладке «По счетам»: пока счёт не выбран, данные не
   // показываем вообще.
@@ -533,8 +541,8 @@ export function CounterpartiesPage() {
     const totalsRows: (string | number)[][] = [["Валюта", "Долг контрагента", "Наш долг", "Итого"]]
     for (const t of detailTotals) totalsRows.push([t.currency, t.theirDebt, t.ourDebt, t.net])
 
-    const recordsRows: (string | number)[][] = [["Счёт", "Объект", "Договор", "Менеджер", "Вид расчёта", "Валюта", "Долг"]]
-    for (const r of detailRecords) recordsRows.push([r.acc_name, r.object_title, r.contract, r.manager, r.vid_raschet, r.currency, r.debt])
+    const recordsRows: (string | number)[][] = [["Телефон", "Счёт", "Объект", "Договор", "Менеджер", "Вид расчёта", "Валюта", "Долг"]]
+    for (const r of detailRecords) recordsRows.push([r.phone, r.acc_name, r.object_title, r.contract, r.manager, r.vid_raschet, r.currency, r.debt])
 
     const { exportToExcel } = await import("@/lib/excel-export")
     exportToExcel(
@@ -876,7 +884,12 @@ export function CounterpartiesPage() {
                             ) : (
                               <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
                             )}
-                            <span className="truncate" title={group.kontr}>{group.kontr}</span>
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate" title={group.kontr}>{group.kontr}</div>
+                              {group.phone && (
+                                <div className="truncate text-xs font-normal text-muted-foreground">{group.phone}</div>
+                              )}
+                            </div>
                             <Button
                               variant="ghost"
                               size="icon"
@@ -952,7 +965,12 @@ export function CounterpartiesPage() {
                             ) : (
                               <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
                             )}
-                            <span className="truncate" title={group.kontr}>{group.kontr}</span>
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate" title={group.kontr}>{group.kontr}</div>
+                              {group.phone && (
+                                <div className="truncate text-xs font-normal text-muted-foreground">{group.phone}</div>
+                              )}
+                            </div>
                             <Button
                               variant="ghost"
                               size="icon"
@@ -1024,7 +1042,12 @@ export function CounterpartiesPage() {
                           ) : (
                             <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
                           )}
-                          <span className="truncate" title={group.kontr}>{group.kontr}</span>
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate" title={group.kontr}>{group.kontr}</div>
+                            {group.phone && (
+                              <div className="truncate text-xs font-normal text-muted-foreground">{group.phone}</div>
+                            )}
+                          </div>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -1072,6 +1095,7 @@ export function CounterpartiesPage() {
           <DialogHeader className="shrink-0 px-6 pt-6 pb-4 border-b flex-row items-start justify-between gap-4">
             <div className="min-w-0">
               <DialogTitle className="truncate" title={detailKontr ?? ""}>{detailKontr}</DialogTitle>
+              {detailPhone && <p className="text-sm text-muted-foreground truncate">{detailPhone}</p>}
               <DialogDescription>
                 Детализация по контрагенту — по всем счетам и объектам, без учёта фильтров страницы
               </DialogDescription>

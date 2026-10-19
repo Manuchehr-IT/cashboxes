@@ -7,6 +7,9 @@
 - **Object (Объект)** — недвижимость. Поле `url` — базовый префикс 1C-инстанса объекта
   (например `http://host/istiqlol/hs/api/`), без конкретного эндпоинта: `cashoborot` (список касс)
   и `cashdetails` (детализация) добавляются к нему на бэкенде автоматически (`OneCClient._child_url`).
+  Basic Auth логин/пароль для всех запросов к 1C — общие на все объекты, хранятся в БД
+  (`onec_settings`, singleton-строка), а не в `.env` — задаются админом на странице «Настройки»
+  (см. Settings в API маршрутах). `get_onec_client` читает их на каждый запрос.
 - **Касса** — приходит из 1C по `url` объекта. Один объект может иметь несколько касс:
   ```json
   {"status": "success", "data": [{"id": "...", "name": "Касса USD", "currency": "USD", "main": true, "type": "Наличные", "ost1": 50, "sump": 0, "sumr": 0, "ost2": 50}]}
@@ -24,7 +27,7 @@
 - **Контрагенты (задолженности)** — приходят из 1C по `url` объекта, эндпоинт `debts`
   (`OneCClient.fetch_debts`, `.../hs/api/debts`):
   ```json
-  {"status": "success", "data": [{"acc_code": "2.20.10", "acc_name": "Счета к оплате за товары и услуги", "kontr": "Поставщики дом", "manager": "user1", "contract": "Основной договор", "debt": -200, "currency": "USD", "vid_raschet": ""}]}
+  {"status": "success", "data": [{"acc_code": "2.20.10", "acc_name": "Счета к оплате за товары и услуги", "kontr": "Поставщики дом", "manager": "user1", "contract": "Основной договор", "debt": -200, "currency": "USD", "vid_raschet": "", "phone": ""}]}
   ```
   Доступ такой же, как у касс (по `UserObject`), без отдельного scope-поля. `acc_name` — счёт/
   аккаунт, `kontr` — контрагент, `debt` — сумма задолженности (может быть отрицательной).
@@ -147,6 +150,17 @@ src/
   Ответ: `{lines: string[], total: number}`, где `total` — количество строк, подошедших под
   фильтры, до обрезки по `limit`.
 
+### Settings (только админы)
+- `GET /v1/settings/onec` — текущие Basic Auth учётные данные для 1C: `{username, has_password}`.
+  Пароль в ответе не возвращается — только факт, задан ли он (`has_password`), чтобы не отдавать
+  секрет по сети лишний раз даже админу.
+- `PATCH /v1/settings/onec` — частичное обновление (`UNSET`-семантика как у остальных `PATCH`):
+  поля, не переданные в запросе, остаются без изменений. `password` имеет смысл передавать только
+  когда его меняют — пустая строка не отправляется, если пользователь ничего не ввёл во фронтовой
+  форме. Данные — одна singleton-строка в таблице `onec_settings`
+  (`OneCSettingsRepository.get()` создаёт её при отсутствии, но обычно она уже посеяна миграцией
+  `0178ab5a16ee` при переносе прежних `ONEC__USERNAME`/`ONEC__PASSWORD` из `.env`).
+
 ## Роутер-архитектура
 
 Правило: **один файл `endpoints.py` = один `APIRouter()` = один уровень доступа**,
@@ -170,7 +184,8 @@ api/v1/router.py          prefix="/v1", агрегатор
 │   ├── endpoints.py      prefix="/users"                    deps=[require_admin_role]  → CRUD пользователей
 │   └── user_object/
 │       └── endpoints.py  prefix="/users/{user_id}/objects"  deps=[require_admin_role]
-└── object/endpoints.py   prefix="/objects"                  deps=[require_admin_role]  → чтение и запись
+├── object/endpoints.py   prefix="/objects"                  deps=[require_admin_role]  → чтение и запись
+└── settings/endpoints.py prefix="/settings"                 deps=[require_admin_role]  → 1C credentials
 ```
 
 Если конкретному эндпоинту внутри роутера нужен сам объект пользователя (не только проверка

@@ -12,6 +12,7 @@ class DebtDTO(BaseModel):
 	debt: float
 	currency: str
 	vid_raschet: str
+	phone: str
 
 class ObjectDebtsDTO(BaseModel):
 	object_id: UUID
