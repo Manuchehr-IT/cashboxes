@@ -1,5 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { CircleUser, ChevronsUpDown, LogOut } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import {
   Sidebar,
   SidebarContent,
@@ -61,16 +62,30 @@ export function AppSidebar() {
             <SidebarGroupLabel>{group.title}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="gap-1">
-                {group.items.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild isActive={pathname === item.url}>
-                      <Link to={item.url}>
+                {group.items.map((item) =>
+                  item.disabled ? (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton disabled className="cursor-not-allowed opacity-50">
                         <item.icon className="h-4 w-4" />
                         <span>{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
+                        {item.badge && (
+                          <Badge variant="secondary" className="ml-auto">
+                            {item.badge}
+                          </Badge>
+                        )}
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ) : (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton asChild isActive={pathname === item.url}>
+                        <Link to={item.url}>
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                )}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>

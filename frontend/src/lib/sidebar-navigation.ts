@@ -1,4 +1,4 @@
-import { Users, Building2, Landmark, ScrollText, Handshake, Settings, type LucideIcon } from "lucide-react"
+import { Users, Building2, Landmark, ScrollText, Handshake, Settings, CalendarClock, type LucideIcon } from "lucide-react"
 
 export type SidebarNavigationItem = {
   title: string
@@ -6,6 +6,9 @@ export type SidebarNavigationItem = {
   icon: LucideIcon
   /** Пункт скрыт, пока у пользователя не выдано соответствующее разрешение (админы — всегда). */
   permissionKey?: "can_view_cashboxes" | "can_view_counterparties"
+  /** Раздел ещё не реализован — пункт виден, но некликабелен, с бейджем `badge`. */
+  disabled?: boolean
+  badge?: string
 }
 
 export type SidebarNavigationGroup = {
@@ -29,8 +32,9 @@ export const navigationGroups: SidebarNavigationGroup[] = [
     title: "Отчёты",
     adminOnly: false,
     items: [
-      { title: "Кассы",        url: "/reports/cashboxes",      icon: Landmark,  permissionKey: "can_view_cashboxes"      },
-      { title: "Контрагенты",  url: "/reports/counterparties", icon: Handshake, permissionKey: "can_view_counterparties" },
+      { title: "Кассы",          url: "/reports/cashboxes",       icon: Landmark,      permissionKey: "can_view_cashboxes"      },
+      { title: "Контрагенты",    url: "/reports/counterparties",  icon: Handshake,     permissionKey: "can_view_counterparties" },
+      { title: "График оплаты", url: "/reports/payment-schedule", icon: CalendarClock, disabled: true, badge: "Скоро" },
     ],
   },
 ]
