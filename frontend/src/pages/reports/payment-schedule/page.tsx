@@ -541,9 +541,8 @@ export function PaymentSchedulePage() {
                         >
                           <span className="text-sm font-medium truncate">{it.kontragent}</span>
                           <span className="font-mono text-sm text-right">{formatAmount(it.sum)}</span>
-                          <span className="col-span-2 text-xs text-muted-foreground truncate">
-                            {it.contract} · {it.object_title}
-                          </span>
+                          <span className="col-span-2 text-xs text-muted-foreground truncate">{it.contract}</span>
+                          <span className="col-span-2 text-xs text-muted-foreground truncate">{it.object_title}</span>
                         </div>
                       ))}
                     </div>
