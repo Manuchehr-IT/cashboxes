@@ -4,7 +4,7 @@ from typing import Any, TypeVar
 from urllib.parse import urlsplit, urlunsplit
 
 import httpx
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 
 from src.core.errors import ExternalServiceRequestError
 from src.infrastructure.external.http import HTTPClient, HTTPMethod
@@ -16,7 +16,6 @@ from .schemas import (
 	OneCDebt,
 	OneCDebtsResponse,
 	OneCPaymentSchedule,
-	OneCPaymentScheduleResponse,
 	OneCResponse,
 	OneCStatusResponse,
 )
@@ -24,6 +23,10 @@ from .schemas import (
 logger = logging.getLogger(__name__)
 
 ResponseT = TypeVar("ResponseT", bound=OneCStatusResponse)
+
+# В отличие от debts/cashoborot/cashdetails, 1C отдаёт grafik как голый JSON-массив,
+# без оборачивания в {"status": "success", "data": [...]}.
+_PAYMENT_SCHEDULE_ADAPTER = TypeAdapter(list[OneCPaymentSchedule])
 
 
 class OneCClient:
@@ -63,13 +66,18 @@ class OneCClient:
 	) -> list[OneCPaymentSchedule]:
 		grafik_url = self._child_url(url, "grafik")
 		params = self._date_params(date_from, date_to)
-		parsed = await self._fetch(grafik_url, params, OneCPaymentScheduleResponse)
-		return parsed.data
+		response = await self._request(grafik_url, params)
 
-	async def _fetch(self, url: str, params: dict[str, Any], response_model: type[ResponseT]) -> ResponseT:
-		"""Единая точка похода в 1C: любой сбой (сеть, HTTP-статус, невалидный JSON/форма ответа,
-		status != success) превращается в ExternalServiceRequestError, а не утекает наверх как
-		сырое httpx/pydantic исключение без понятного сообщения."""
+		try:
+			return _PAYMENT_SCHEDULE_ADAPTER.validate_json(response.text)
+		except ValidationError as e:
+			logger.error(
+				"1C response is not valid JSON/schema: %s -> [%s] %s (%s)",
+				grafik_url, response.status_code, response.text, e,
+			)
+			raise ExternalServiceRequestError(service="1C", url=grafik_url, status_code=response.status_code) from e
+
+	async def _request(self, url: str, params: dict[str, Any]) -> httpx.Response:
 		try:
 			response = await self.http_client.request(HTTPMethod.GET, url, params=params, auth=self.auth)
 		except httpx.HTTPError as e:
@@ -78,6 +86,13 @@ class OneCClient:
 			raise ExternalServiceRequestError(service="1C", url=url, status_code=status_code) from e
 
 		logger.debug("1C response: %s params=%s -> [%s] %s", url, params, response.status_code, response.text)
+		return response
+
+	async def _fetch(self, url: str, params: dict[str, Any], response_model: type[ResponseT]) -> ResponseT:
+		"""Единая точка похода в 1C: любой сбой (сеть, HTTP-статус, невалидный JSON/форма ответа,
+		status != success) превращается в ExternalServiceRequestError, а не утекает наверх как
+		сырое httpx/pydantic исключение без понятного сообщения."""
+		response = await self._request(url, params)
 
 		try:
 			parsed = response_model.model_validate(response.json())

@@ -80,7 +80,3 @@ class OneCPaymentSchedule(BaseModel):
 	ost_end: float
 	fact: list[OneCPaymentEntry] = []
 	phone: str = ""
-
-
-class OneCPaymentScheduleResponse(OneCStatusResponse):
-	data: list[OneCPaymentSchedule] = []
