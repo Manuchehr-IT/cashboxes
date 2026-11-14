@@ -15,6 +15,8 @@ from .schemas import (
 	OneCCashDetailsResponse,
 	OneCDebt,
 	OneCDebtsResponse,
+	OneCPaymentSchedule,
+	OneCPaymentScheduleResponse,
 	OneCResponse,
 	OneCStatusResponse,
 )
@@ -51,6 +53,17 @@ class OneCClient:
 	async def fetch_debts(self, url: str) -> list[OneCDebt]:
 		debts_url = self._child_url(url, "debts")
 		parsed = await self._fetch(debts_url, {}, OneCDebtsResponse)
+		return parsed.data
+
+	async def fetch_payment_schedule(
+		self,
+		url: str,
+		date_from: date | None,
+		date_to: date | None,
+	) -> list[OneCPaymentSchedule]:
+		grafik_url = self._child_url(url, "grafik")
+		params = self._date_params(date_from, date_to)
+		parsed = await self._fetch(grafik_url, params, OneCPaymentScheduleResponse)
 		return parsed.data
 
 	async def _fetch(self, url: str, params: dict[str, Any], response_model: type[ResponseT]) -> ResponseT:

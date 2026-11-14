@@ -5,6 +5,9 @@ from .schemas import (
 	OneCCashDetailsResponse,
 	OneCDebt,
 	OneCDebtsResponse,
+	OneCPaymentEntry,
+	OneCPaymentSchedule,
+	OneCPaymentScheduleResponse,
 	OneCResponse,
 )
 
@@ -15,5 +18,8 @@ __all__ = [
 	"OneCClient",
 	"OneCDebt",
 	"OneCDebtsResponse",
+	"OneCPaymentEntry",
+	"OneCPaymentSchedule",
+	"OneCPaymentScheduleResponse",
 	"OneCResponse",
 ]

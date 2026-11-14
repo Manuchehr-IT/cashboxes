@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
@@ -63,3 +64,23 @@ class OneCDebt(BaseModel):
 
 class OneCDebtsResponse(OneCStatusResponse):
 	data: list[OneCDebt] = []
+
+
+class OneCPaymentEntry(BaseModel):
+	date: datetime
+	sum: float
+
+
+class OneCPaymentSchedule(BaseModel):
+	kontragent: str
+	contract: str
+	plan: list[OneCPaymentEntry] = []
+	currency: str
+	ost_start: float
+	ost_end: float
+	fact: list[OneCPaymentEntry] = []
+	phone: str = ""
+
+
+class OneCPaymentScheduleResponse(OneCStatusResponse):
+	data: list[OneCPaymentSchedule] = []

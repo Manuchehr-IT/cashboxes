@@ -34,7 +34,7 @@ export const navigationGroups: SidebarNavigationGroup[] = [
     items: [
       { title: "Кассы",          url: "/reports/cashboxes",       icon: Landmark,      permissionKey: "can_view_cashboxes"      },
       { title: "Контрагенты",    url: "/reports/counterparties",  icon: Handshake,     permissionKey: "can_view_counterparties" },
-      { title: "График оплаты", url: "/reports/payment-schedule", icon: CalendarClock, disabled: true, badge: "Скоро" },
+      { title: "График оплаты", url: "/reports/payment-schedule", icon: CalendarClock },
     ],
   },
 ]

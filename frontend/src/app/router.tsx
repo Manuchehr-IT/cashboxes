@@ -9,6 +9,7 @@ import { SettingsPage } from "@/pages/settings"
 import { CashboxesPage } from "@/pages/reports/cashboxes"
 import { CashboxDetailPage } from "@/pages/reports/cashbox-detail"
 import { CounterpartiesPage } from "@/pages/reports/counterparties"
+import { PaymentSchedulePage } from "@/pages/reports/payment-schedule"
 
 import { ProtectedRoute } from "@/components/protected-route"
 import { PublicRoute } from "@/components/public-route"
@@ -38,6 +39,7 @@ export const router = createBrowserRouter([
           { path: "/reports/cashboxes",  element: <CashboxesPage /> },
           { path: "/reports/cashboxes/:objectId/:cashId", element: <CashboxDetailPage /> },
           { path: "/reports/counterparties", element: <CounterpartiesPage /> },
+          { path: "/reports/payment-schedule", element: <PaymentSchedulePage /> },
         ],
       },
     ],
